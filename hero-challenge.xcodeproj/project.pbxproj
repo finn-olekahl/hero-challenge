@@ -6,28 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */; };
-		B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0722F87DC4E009FE241 /* ContentView.swift */; };
-		B64CE0752F87DC4F009FE241 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B64CE0742F87DC4F009FE241 /* Assets.xcassets */; };
-		B64CE0A12F87E001009FE241 /* Measurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A02F87E001009FE241 /* Measurement.swift */; };
-		B64CE0A32F87E002009FE241 /* MeasureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */; };
-		B64CE0A52F87E003009FE241 /* ARSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A42F87E003009FE241 /* ARSceneView.swift */; };
-		B64CE0A72F87E004009FE241 /* CrosshairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A62F87E004009FE241 /* CrosshairView.swift */; };
-		B64CE0A92F87E005009FE241 /* MeasureOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		B64CE06D2F87DC4E009FE241 /* hero-challenge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "hero-challenge.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hero_challengeApp.swift; sourceTree = "<group>"; };
-		B64CE0722F87DC4E009FE241 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B64CE0742F87DC4F009FE241 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B64CE0A02F87E001009FE241 /* Measurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measurement.swift; sourceTree = "<group>"; };
-		B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureViewModel.swift; sourceTree = "<group>"; };
-		B64CE0A42F87E003009FE241 /* ARSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARSceneView.swift; sourceTree = "<group>"; };
-		B64CE0A62F87E004009FE241 /* CrosshairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrosshairView.swift; sourceTree = "<group>"; };
-		B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureOverlayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B64CE0C02F88A001009FE241 /* hero-challenge */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "hero-challenge";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B64CE06A2F87DC4E009FE241 /* Frameworks */ = {
@@ -43,11 +32,7 @@
 		B64CE0642F87DC4E009FE241 = {
 			isa = PBXGroup;
 			children = (
-				B64CE07B2F87DC6D009FE241 /* App */,
-				B64CE07C2F87DC72009FE241 /* Views */,
-				B64CE07E2F87DC7E009FE241 /* ViewModels */,
-				B64CE07D2F87DC76009FE241 /* Models */,
-				B64CE07F2F87DC84009FE241 /* Resources */,
+				B64CE0C02F88A001009FE241 /* hero-challenge */,
 				B64CE06E2F87DC4E009FE241 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,49 +43,6 @@
 				B64CE06D2F87DC4E009FE241 /* hero-challenge.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		B64CE07B2F87DC6D009FE241 /* App */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */,
-			);
-			path = App;
-			sourceTree = "<group>";
-		};
-		B64CE07C2F87DC72009FE241 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0722F87DC4E009FE241 /* ContentView.swift */,
-				B64CE0A42F87E003009FE241 /* ARSceneView.swift */,
-				B64CE0A62F87E004009FE241 /* CrosshairView.swift */,
-				B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		B64CE07D2F87DC76009FE241 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0A02F87E001009FE241 /* Measurement.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		B64CE07E2F87DC7E009FE241 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		B64CE07F2F87DC84009FE241 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0742F87DC4F009FE241 /* Assets.xcassets */,
-			);
-			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -117,6 +59,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B64CE0C02F88A001009FE241 /* hero-challenge */,
 			);
 			name = "hero-challenge";
 			packageProductDependencies = (
@@ -164,7 +109,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B64CE0752F87DC4F009FE241 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -175,13 +119,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */,
-				B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */,
-				B64CE0A12F87E001009FE241 /* Measurement.swift in Sources */,
-				B64CE0A32F87E002009FE241 /* MeasureViewModel.swift in Sources */,
-				B64CE0A52F87E003009FE241 /* ARSceneView.swift in Sources */,
-				B64CE0A72F87E004009FE241 /* CrosshairView.swift in Sources */,
-				B64CE0A92F87E005009FE241 /* MeasureOverlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
