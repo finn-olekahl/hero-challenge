@@ -10,6 +10,11 @@
 		B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */; };
 		B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0722F87DC4E009FE241 /* ContentView.swift */; };
 		B64CE0752F87DC4F009FE241 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B64CE0742F87DC4F009FE241 /* Assets.xcassets */; };
+		B64CE0A12F87E001009FE241 /* Measurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A02F87E001009FE241 /* Measurement.swift */; };
+		B64CE0A32F87E002009FE241 /* MeasureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */; };
+		B64CE0A52F87E003009FE241 /* ARSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A42F87E003009FE241 /* ARSceneView.swift */; };
+		B64CE0A72F87E004009FE241 /* CrosshairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A62F87E004009FE241 /* CrosshairView.swift */; };
+		B64CE0A92F87E005009FE241 /* MeasureOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +22,11 @@
 		B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hero_challengeApp.swift; sourceTree = "<group>"; };
 		B64CE0722F87DC4E009FE241 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B64CE0742F87DC4F009FE241 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B64CE0A02F87E001009FE241 /* Measurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measurement.swift; sourceTree = "<group>"; };
+		B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureViewModel.swift; sourceTree = "<group>"; };
+		B64CE0A42F87E003009FE241 /* ARSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARSceneView.swift; sourceTree = "<group>"; };
+		B64CE0A62F87E004009FE241 /* CrosshairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrosshairView.swift; sourceTree = "<group>"; };
+		B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureOverlayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +72,9 @@
 			isa = PBXGroup;
 			children = (
 				B64CE0722F87DC4E009FE241 /* ContentView.swift */,
+				B64CE0A42F87E003009FE241 /* ARSceneView.swift */,
+				B64CE0A62F87E004009FE241 /* CrosshairView.swift */,
+				B64CE0A82F87E005009FE241 /* MeasureOverlayView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -69,6 +82,7 @@
 		B64CE07D2F87DC76009FE241 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B64CE0A02F87E001009FE241 /* Measurement.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -76,6 +90,7 @@
 		B64CE07E2F87DC7E009FE241 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				B64CE0A22F87E002009FE241 /* MeasureViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -162,6 +177,11 @@
 			files = (
 				B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */,
 				B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */,
+				B64CE0A12F87E001009FE241 /* Measurement.swift in Sources */,
+				B64CE0A32F87E002009FE241 /* MeasureViewModel.swift in Sources */,
+				B64CE0A52F87E003009FE241 /* ARSceneView.swift in Sources */,
+				B64CE0A72F87E004009FE241 /* CrosshairView.swift in Sources */,
+				B64CE0A92F87E005009FE241 /* MeasureOverlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -292,17 +312,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JG7CFYYV5B;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to measure objects in your room with AR.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -336,17 +358,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JG7CFYYV5B;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to measure objects in your room with AR.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

@@ -8,14 +8,23 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var viewModel = MeasureViewModel()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        ZStack {
+#if os(iOS)
+            ARSceneView(viewModel: viewModel)
+                .ignoresSafeArea()
+#else
+            Color.black.ignoresSafeArea()
+            Text("AR is not supported on this platform.")
+                .foregroundStyle(.secondary)
+#endif
+            CrosshairView(viewModel: viewModel)
+            MeasureOverlayView(viewModel: viewModel)
         }
-        .padding()
+        .preferredColorScheme(.dark)
+        .persistentSystemOverlays(.hidden)
     }
 }
 
