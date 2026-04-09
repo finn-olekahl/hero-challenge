@@ -14,11 +14,21 @@ struct RecordingTimeline: Codable {
     }
 
     mutating func addTranscript(_ text: String, at timestamp: TimeInterval) {
-        entries.append(TimelineEntry(
-            type: .transcript,
-            timestamp: timestamp,
-            content: .transcript(text)
-        ))
+        // Replace the last transcript entry instead of appending duplicates.
+        // Apple Speech sends cumulative partial results — we only need the latest.
+        if let lastIndex = entries.lastIndex(where: { $0.type == .transcript }) {
+            entries[lastIndex] = TimelineEntry(
+                type: .transcript,
+                timestamp: timestamp,
+                content: .transcript(text)
+            )
+        } else {
+            entries.append(TimelineEntry(
+                type: .transcript,
+                timestamp: timestamp,
+                content: .transcript(text)
+            ))
+        }
     }
 
     mutating func addPhoto(id: UUID, at timestamp: TimeInterval) {

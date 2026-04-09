@@ -35,7 +35,7 @@ final class OfferController {
             }
 
             guard let project = answers.project else {
-                errorMessage = "Kein Auftrag ausgewählt."
+                errorMessage = "Kein Projekt ausgewählt."
                 return
             }
 
@@ -62,10 +62,10 @@ final class OfferController {
                 // Create an ad-hoc service position for hourly billing
                 var serviceAction: [String: AnyCodable] = [
                     "name": AnyCodable(billing.service.name),
-                    "unit_type": AnyCodable("Std."),
+                    "unit_type": AnyCodable("Std"),
                     "net_price_per_unit": AnyCodable(0),
                     "vat_percent": AnyCodable(19.0),
-                    "quantity": AnyCodable(hours)
+                    "quantity": AnyCodable(max(hours, 1))
                 ]
                 if !billing.service.description.isEmpty {
                     serviceAction["description"] = AnyCodable(billing.service.description)
@@ -78,7 +78,7 @@ final class OfferController {
                     var serviceAction: [String: AnyCodable] = [
                         "supplyServiceId": AnyCodable(supplyService.id)
                     ]
-                    if let qty = billing.service.suggestedQuantity {
+                    if let qty = billing.service.suggestedQuantity, qty > 0 {
                         serviceAction["quantity"] = AnyCodable(qty)
                     }
                     actions.append(["add_existing_service": AnyCodable(serviceAction)])

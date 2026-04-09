@@ -96,7 +96,6 @@ struct Country: Codable, Hashable {
 }
 
 struct SupplyProductVersion: Codable, Identifiable, Hashable {
-    let id: Int
     let product_id: String?
     let nr: String?
     let base_price: Double?
@@ -105,12 +104,19 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
     let internal_identifier: String?
     let base_data: SupplyProductBaseData?
 
+    /// API returns `id: null` for product versions — use product_id as stable identifier
+    var id: String { product_id ?? nr ?? UUID().uuidString }
+
     var displayName: String {
-        base_data?.name ?? nr ?? "Produkt #\(id)"
+        base_data?.name ?? nr ?? "Produkt"
     }
 
     var unit: String? { base_data?.unit_type }
     var price_net: Double? { base_price }
+
+    private enum CodingKeys: String, CodingKey {
+        case product_id, nr, base_price, list_price, vat_percent, internal_identifier, base_data
+    }
 }
 
 struct SupplyProductBaseData: Codable, Hashable {

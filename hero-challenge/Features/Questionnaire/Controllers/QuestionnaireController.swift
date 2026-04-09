@@ -48,7 +48,7 @@ final class QuestionnaireController {
         // Typ 1: Auftragsnachfrage (always first)
         let orderQuestion = QuestionnaireItem(
             type: .orderAssignment,
-            question: "Welchem Auftrag gehört dieses Angebot?",
+            question: "Welchem Projekt gehört dieses Angebot?",
             context: evaluation.context?.suggestedProjectName ?? evaluation.context?.customerName,
             answer: .project(nil)
         )
@@ -132,18 +132,14 @@ final class QuestionnaireController {
         isLoading = true
         defer { isLoading = false }
 
+        // Fetch independently — one failure must not block the others
         async let projectsTask = apiService.fetchProjects()
         async let productsTask = apiService.fetchSupplyProducts()
         async let servicesTask = apiService.fetchSupplyServices()
 
-        do {
-            let (p, prod, svc) = try await (projectsTask, productsTask, servicesTask)
-            projects = p
-            products = prod
-            services = svc
-        } catch {
-            // Silently fail — user can still type manually
-        }
+        do { projects = try await projectsTask } catch { print("⚠️ Failed to load projects: \(error)") }
+        do { products = try await productsTask } catch { print("⚠️ Failed to load products: \(error)") }
+        do { services = try await servicesTask } catch { print("⚠️ Failed to load services: \(error)") }
     }
 
     func searchProjects(_ query: String) async {

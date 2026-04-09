@@ -50,7 +50,7 @@ struct OfferView: View {
             Text("Zusammenfassung")
                 .font(.headline)
 
-            summaryRow(icon: "folder", label: "Auftrag", value: controller.offerSummary.projectName)
+            summaryRow(icon: "folder", label: "Projekt", value: controller.offerSummary.projectName)
             summaryRow(icon: "wrench.and.screwdriver", label: "Leistungen", value: "\(controller.offerSummary.serviceCount)")
             summaryRow(icon: "shippingbox", label: "Materialien", value: "\(controller.offerSummary.materialCount)")
             summaryRow(icon: "doc.text", label: "Positionen gesamt", value: "\(controller.offerSummary.totalPositions)")

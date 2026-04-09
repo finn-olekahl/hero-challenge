@@ -120,7 +120,7 @@ struct QuestionnaireView: View {
     @ViewBuilder
     private func questionTypeBadge(_ type: QuestionnaireItem.QuestionType) -> some View {
         let (label, color): (String, Color) = switch type {
-        case .orderAssignment: ("Auftrag", .blue)
+        case .orderAssignment: ("Projekt", .blue)
         case .billing: ("Abrechnung", .orange)
         case .articleSelection: ("Artikel", .green)
         case .freeText: ("Freitext", .purple)
@@ -157,11 +157,11 @@ struct QuestionnaireView: View {
 
     private var orderAssignmentInput: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Auftrag auswählen")
+            Text("Projekt auswählen")
                 .font(.subheadline.weight(.medium))
 
             if controller.isLoading {
-                ProgressView("Lade Aufträge...")
+                ProgressView("Lade Projekte...")
             }
 
             ForEach(controller.projects) { project in
@@ -209,7 +209,7 @@ struct QuestionnaireView: View {
             .pickerStyle(.segmented)
             .onChange(of: billingIsHourly) { _, isHourly in
                 if isHourly {
-                    let hours = Double(hourCount) ?? 0
+                    let hours = Double(hourCount.replacingOccurrences(of: ",", with: ".")) ?? 0
                     controller.setBillingMethod(.hourly(hours: hours))
                 } else {
                     controller.setBillingMethod(.serviceType(nil))
@@ -220,11 +220,11 @@ struct QuestionnaireView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Anzahl Stunden")
                         .font(.subheadline.weight(.medium))
-                    TextField("z.B. 4.5", text: $hourCount)
+                    TextField("z.B. 4,5", text: $hourCount)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: hourCount) { _, newValue in
-                            let hours = Double(newValue) ?? 0
+                            let hours = Double(newValue.replacingOccurrences(of: ",", with: ".")) ?? 0
                             controller.setBillingMethod(.hourly(hours: hours))
                         }
                 }

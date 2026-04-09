@@ -204,7 +204,6 @@ private enum Queries {
     static let supplyProductVersions = """
     query SupplyProductVersions($search: String, $first: Int) {
         supply_product_versions(search: $search, first: $first) {
-            id
             product_id
             nr
             base_price
