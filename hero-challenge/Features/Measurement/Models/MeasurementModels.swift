@@ -1,13 +1,8 @@
-//
-//  Measurement.swift
-//  hero-challenge
-//
-
 import Foundation
 import SceneKit
 
 /// A point placed in 3-D world space during measurement.
-struct MeasurementPoint: Equatable {
+struct MeasurementPoint: Equatable, Codable {
     let position: SIMD3<Float>
 
     var scnVector3: SCNVector3 {
@@ -20,6 +15,27 @@ struct MeasurementPoint: Equatable {
 
     init(_ v: SCNVector3) {
         self.position = SIMD3<Float>(v.x, v.y, v.z)
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case x, y, z
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let x = try container.decode(Float.self, forKey: .x)
+        let y = try container.decode(Float.self, forKey: .y)
+        let z = try container.decode(Float.self, forKey: .z)
+        self.position = SIMD3<Float>(x, y, z)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(position.x, forKey: .x)
+        try container.encode(position.y, forKey: .y)
+        try container.encode(position.z, forKey: .z)
     }
 }
 

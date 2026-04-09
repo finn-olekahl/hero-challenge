@@ -1,21 +1,15 @@
-//
-//  ARSceneView.swift
-//  hero-challenge
-//
-
 import SwiftUI
 
 #if os(iOS)
 import ARKit
-import SceneKit
+@preconcurrency import SceneKit
 import UIKit
 
-// MARK: - UIViewRepresentable
+struct ARMeasureView: UIViewRepresentable {
+    let controller: MeasureController
+    var onPhotoCaptured: ((UIImage) -> Void)?
 
-struct ARSceneView: UIViewRepresentable {
-    let viewModel: MeasureViewModel
-
-    func makeCoordinator() -> Coordinator { Coordinator(viewModel: viewModel) }
+    func makeCoordinator() -> Coordinator { Coordinator(controller: controller, onPhotoCaptured: onPhotoCaptured) }
 
     func makeUIView(context: Context) -> ARSCNView {
         let view = ARSCNView(frame: .zero)
@@ -43,66 +37,77 @@ struct ARSceneView: UIViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate {
-        private let viewModel: MeasureViewModel
+        private let controller: MeasureController
+        private let onPhotoCaptured: ((UIImage) -> Void)?
         weak var sceneView: ARSCNView?
 
-        // Persistent SceneKit nodes
         private var crosshairNode: SCNNode?
         private var liveLineNode: SCNNode?
         private var liveLabelNode: SCNNode?
         private var liveStartDotNode: SCNNode?
-
-        // Finalised segment nodes keyed by segment id
         private var segmentNodes: [UUID: (line: SCNNode, label: SCNNode, startDot: SCNNode, endDot: SCNNode)] = [:]
 
-        init(viewModel: MeasureViewModel) {
-            self.viewModel = viewModel
+        private var photoCaptureObserver: NSObjectProtocol?
+
+        init(controller: MeasureController, onPhotoCaptured: ((UIImage) -> Void)?) {
+            self.controller = controller
+            self.onPhotoCaptured = onPhotoCaptured
             super.init()
+
+            photoCaptureObserver = NotificationCenter.default.addObserver(
+                forName: .capturePhoto,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor [weak self] in
+                    self?.capturePhoto()
+                }
+            }
         }
 
-        // MARK: Session
+        deinit {
+            if let observer = photoCaptureObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
 
         func startSession() {
             guard ARWorldTrackingConfiguration.isSupported, let sceneView else {
-                viewModel.instructionText = "AR is not available on this device."
+                controller.instructionText = "AR ist auf diesem Gerät nicht verfügbar."
                 return
             }
             let config = ARWorldTrackingConfiguration()
             config.planeDetection = [.horizontal, .vertical]
             sceneView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
-
             prewarmShaders()
         }
 
-        /// Add tiny invisible nodes that use every geometry type we need, so SceneKit
-        /// compiles the Metal shaders during the first few render passes instead of
-        /// when the user taps for the first time.
+        func capturePhoto() {
+            guard let sceneView else { return }
+            let image = sceneView.snapshot()
+            onPhotoCaptured?(image)
+        }
+
         private func prewarmShaders() {
             guard let sceneView else { return }
-
-            // Use a nearly-invisible (but non-zero alpha) colour so the GPU
-            // actually executes the fragment shader and compiles it.
             let warmColor = UIColor.white.withAlphaComponent(0.02)
 
-            // -- Torus (crosshair ring) --
             let torus = SCNTorus(ringRadius: 0.012, pipeRadius: 0.001)
             torus.firstMaterial?.diffuse.contents = warmColor
             torus.firstMaterial?.lightingModel = .constant
             let torusNode = SCNNode(geometry: torus)
 
-            // -- Sphere (dot) --
             let sphere = SCNSphere(radius: 0.004)
             sphere.firstMaterial?.diffuse.contents = warmColor
             sphere.firstMaterial?.lightingModel = .constant
             let sphereNode = SCNNode(geometry: sphere)
 
-            // -- Cylinder (line) --
             let cyl = SCNCylinder(radius: 0.001, height: 0.01)
             cyl.firstMaterial?.diffuse.contents = warmColor
             cyl.firstMaterial?.lightingModel = .constant
             let cylNode = SCNNode(geometry: cyl)
 
-            // -- SCNText (label) — use a realistic string to force full font load --
             let text = SCNText(string: "12.5 cm", extrusionDepth: 0)
             text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
             text.flatness = 0.3
@@ -111,27 +116,23 @@ struct ARSceneView: UIViewRepresentable {
             let textNode = SCNNode(geometry: text)
             textNode.scale = SCNVector3(0.001, 0.001, 0.001)
 
-            // -- SCNPlane (label background) --
             let plane = SCNPlane(width: 0.01, height: 0.005)
             plane.cornerRadius = 0.0025
             plane.firstMaterial?.diffuse.contents = warmColor
             plane.firstMaterial?.lightingModel = .constant
             let planeNode = SCNNode(geometry: plane)
 
-            // Group them under one invisible container placed far away
             let warmupContainer = SCNNode()
-            warmupContainer.position = SCNVector3(0, -100, 0)        // out of view
-            warmupContainer.opacity = 0.01                            // nearly invisible but still rendered
+            warmupContainer.position = SCNVector3(0, -100, 0)
+            warmupContainer.opacity = 0.01
             warmupContainer.addChildNode(torusNode)
             warmupContainer.addChildNode(sphereNode)
             warmupContainer.addChildNode(cylNode)
             warmupContainer.addChildNode(textNode)
             warmupContainer.addChildNode(planeNode)
 
-            // Add to scene so SceneKit actually renders them and compiles shaders
             sceneView.scene.rootNode.addChildNode(warmupContainer)
 
-            // Eagerly compile shaders on a background thread, then remove
             sceneView.prepare([torus, sphere, cyl, text, plane]) { _ in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     warmupContainer.removeFromParentNode()
@@ -142,7 +143,6 @@ struct ARSceneView: UIViewRepresentable {
         // MARK: Per-frame update
 
         nonisolated func renderer(_ renderer: any SCNSceneRenderer, updateAtTime time: TimeInterval) {
-            // SceneKit calls this on its render thread — bounce to main.
             DispatchQueue.main.async { [weak self] in
                 self?.performFrameUpdate()
             }
@@ -153,13 +153,13 @@ struct ARSceneView: UIViewRepresentable {
             let center = CGPoint(x: sceneView.bounds.midX, y: sceneView.bounds.midY)
 
             guard let query = sceneView.raycastQuery(from: center, allowing: .estimatedPlane, alignment: .any) else {
-                viewModel.isSurfaceDetected = false
+                controller.isSurfaceDetected = false
                 crosshairNode?.isHidden = true
                 return
             }
             let results = sceneView.session.raycast(query)
             guard let hit = results.first else {
-                viewModel.isSurfaceDetected = false
+                controller.isSurfaceDetected = false
                 crosshairNode?.isHidden = true
                 return
             }
@@ -167,40 +167,30 @@ struct ARSceneView: UIViewRepresentable {
             let col3 = hit.worldTransform.columns.3
             let position = SCNVector3(col3.x, col3.y, col3.z)
 
-            viewModel.crosshairWorldPosition = position
-            viewModel.isSurfaceDetected = true
+            controller.crosshairWorldPosition = position
+            controller.isSurfaceDetected = true
 
-            // Surface normal from the hit transform (the Y column = surface normal)
             let col1 = hit.worldTransform.columns.1
-            viewModel.surfaceNormal = SIMD3<Float>(col1.x, col1.y, col1.z)
+            controller.surfaceNormal = SIMD3<Float>(col1.x, col1.y, col1.z)
 
-            // Update crosshair indicator
             updateCrosshairNode(position: position, transform: hit.worldTransform)
-
-            // Update live measurement line
             updateLiveLine()
-
-            // Update label positions to stick to the visible center
             updateLabelPositions()
         }
 
         private func lerp(_ a: SCNVector3, _ b: SCNVector3, _ t: Float) -> SCNVector3 {
-            return SCNVector3(
-                a.x + (b.x - a.x) * t,
-                a.y + (b.y - a.y) * t,
-                a.z + (b.z - a.z) * t
-            )
+            SCNVector3(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t)
         }
 
         private func getVisibleMidpoint(start: SCNVector3, end: SCNVector3) -> SCNVector3 {
             guard let sceneView else {
                 return SCNVector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 0.015, (start.z + end.z) / 2)
             }
-            
+
             let steps = 150
             var firstT: Float? = nil
             var lastT: Float? = nil
-            
+
             for i in 0...steps {
                 let t = Float(i) / Float(steps)
                 let pt = SCNVector3(
@@ -208,11 +198,9 @@ struct ARSceneView: UIViewRepresentable {
                     start.y + (end.y - start.y) * t,
                     start.z + (end.z - start.z) * t
                 )
-                
                 let proj = sceneView.projectPoint(pt)
-                // z <= 1 indicates it's in front of camera
                 if proj.z >= 0.0 && proj.z <= 1.0 {
-                    let padding: Float = 50 // keep it from edge
+                    let padding: Float = 50
                     if proj.x >= padding && proj.x <= Float(sceneView.bounds.width) - padding &&
                        proj.y >= padding && proj.y <= Float(sceneView.bounds.height) - padding {
                         if firstT == nil { firstT = t }
@@ -220,7 +208,7 @@ struct ARSceneView: UIViewRepresentable {
                     }
                 }
             }
-            
+
             let finalT = (firstT != nil && lastT != nil) ? (firstT! + lastT!) / 2.0 : 0.5
             return SCNVector3(
                 start.x + (end.x - start.x) * finalT,
@@ -230,25 +218,21 @@ struct ARSceneView: UIViewRepresentable {
         }
 
         private func updateLabelScale(node: SCNNode) {
-            guard let sceneView = sceneView, let pov = sceneView.pointOfView else { return }
-            // Scale dynamically based on distance to camera so it remains legible
+            guard let sceneView, let pov = sceneView.pointOfView else { return }
             let distance = simd_distance(node.simdPosition, pov.simdPosition)
-            let s = max(0.5, distance * 1.5) // Adjust multiplier as needed
+            let s = max(0.5, distance * 1.5)
             node.scale = SCNVector3(s, s, s)
         }
 
         private func updateLabelPositions() {
-            // Update finalized segments
-            for segment in viewModel.segments {
+            for segment in controller.segments {
                 if let nodes = segmentNodes[segment.id] {
                     let target = getVisibleMidpoint(start: segment.start.scnVector3, end: segment.end.scnVector3)
-                    // Smoothly interpolate towards the target position
                     nodes.label.position = lerp(nodes.label.position, target, 0.15)
                     updateLabelScale(node: nodes.label)
                 }
             }
-            // Update live line
-            if let start = viewModel.currentStartPoint, let end = viewModel.crosshairWorldPosition {
+            if let start = controller.currentStartPoint, let end = controller.crosshairWorldPosition {
                 let target = getVisibleMidpoint(start: start.scnVector3, end: end)
                 if let liveLabel = liveLabelNode {
                     liveLabel.position = lerp(liveLabel.position, target, 0.25)
@@ -256,8 +240,6 @@ struct ARSceneView: UIViewRepresentable {
                 }
             }
         }
-
-        // MARK: Crosshair indicator (3-D ring on surfaces)
 
         private func updateCrosshairNode(position: SCNVector3, transform: simd_float4x4) {
             if crosshairNode == nil {
@@ -271,15 +253,12 @@ struct ARSceneView: UIViewRepresentable {
             guard let node = crosshairNode else { return }
             node.isHidden = false
             node.simdWorldTransform = transform
-            // Zero-out scale from transform — keep only rotation + position
             node.simdScale = SIMD3<Float>(repeating: 1)
         }
 
-        // MARK: Live line + label while measuring
-
         private func updateLiveLine() {
-            guard let startPoint = viewModel.currentStartPoint,
-                  let endPos = viewModel.crosshairWorldPosition else {
+            guard let startPoint = controller.currentStartPoint,
+                  let endPos = controller.crosshairWorldPosition else {
                 liveLineNode?.isHidden = true
                 liveLabelNode?.isHidden = true
                 liveStartDotNode?.isHidden = true
@@ -289,7 +268,6 @@ struct ARSceneView: UIViewRepresentable {
             let start = startPoint.scnVector3
             let end = endPos
 
-            // --- Start dot ---
             if liveStartDotNode == nil {
                 liveStartDotNode = makeDotNode(color: .white)
                 sceneView?.scene.rootNode.addChildNode(liveStartDotNode!)
@@ -297,7 +275,6 @@ struct ARSceneView: UIViewRepresentable {
             liveStartDotNode?.isHidden = false
             liveStartDotNode?.position = start
 
-            // --- Line (reuse node, update geometry in place) ---
             let dist = simd_distance(startPoint.position, SIMD3<Float>(end.x, end.y, end.z))
             if dist < 0.001 {
                 liveLineNode?.isHidden = true
@@ -313,16 +290,11 @@ struct ARSceneView: UIViewRepresentable {
             }
             liveLineNode?.isHidden = false
 
-            // --- Label (reuse node, update text string in place) ---
             let labelStr: String
             if dist >= 1 { labelStr = String(format: "%.2f m", dist) }
             else { labelStr = String(format: "%.1f cm", dist * 100) }
 
-            let mid = SCNVector3(
-                (start.x + end.x) / 2,
-                (start.y + end.y) / 2 + 0.015,
-                (start.z + end.z) / 2
-            )
+            let mid = SCNVector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 0.015, (start.z + end.z) / 2)
 
             if liveLabelNode == nil {
                 liveLabelNode = makeLabelNode(text: labelStr, at: mid)
@@ -333,12 +305,9 @@ struct ARSceneView: UIViewRepresentable {
             liveLabelNode?.isHidden = false
         }
 
-        // MARK: Sync finalised segments
-
         func syncNodes() {
-            let currentIDs = Set(viewModel.segments.map(\.id))
+            let currentIDs = Set(controller.segments.map(\.id))
 
-            // Remove nodes for deleted segments
             for id in segmentNodes.keys where !currentIDs.contains(id) {
                 let nodes = segmentNodes.removeValue(forKey: id)
                 nodes?.line.removeFromParentNode()
@@ -347,8 +316,7 @@ struct ARSceneView: UIViewRepresentable {
                 nodes?.endDot.removeFromParentNode()
             }
 
-            // Add nodes for new segments
-            for segment in viewModel.segments where segmentNodes[segment.id] == nil {
+            for segment in controller.segments where segmentNodes[segment.id] == nil {
                 let start = segment.start.scnVector3
                 let end = segment.end.scnVector3
 
@@ -369,8 +337,7 @@ struct ARSceneView: UIViewRepresentable {
                 segmentNodes[segment.id] = (lineNode, labelNode, startDot, endDot)
             }
 
-            // If we cleared everything, also remove live nodes
-            if !viewModel.isLiveMeasuring {
+            if !controller.isLiveMeasuring {
                 liveLineNode?.removeFromParentNode()
                 liveLineNode = nil
                 liveLabelNode?.removeFromParentNode()
@@ -402,7 +369,6 @@ struct ARSceneView: UIViewRepresentable {
             wrapper.addChildNode(cylinderNode)
             wrapper.position = start
             wrapper.look(at: end, up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 1, 0))
-
             return wrapper
         }
 
@@ -417,7 +383,6 @@ struct ARSceneView: UIViewRepresentable {
         }
 
         private func makeLabelNode(text: String, at position: SCNVector3) -> SCNNode {
-            // Background panel with text — flat extrusion (0) for speed
             let scnText = SCNText(string: text, extrusionDepth: 0)
             scnText.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
             scnText.flatness = 0.3
@@ -435,7 +400,6 @@ struct ARSceneView: UIViewRepresentable {
             let scale: Float = 0.001
             textNode.scale = SCNVector3(scale, scale, scale)
 
-            // Dark background plane
             let padding: CGFloat = 6
             let bgW = CGFloat(textW) * CGFloat(scale) + 0.008
             let bgH = CGFloat(textH) * CGFloat(scale) + 0.004
@@ -453,7 +417,6 @@ struct ARSceneView: UIViewRepresentable {
             container.addChildNode(textNode)
             container.position = position
             container.constraints = [SCNBillboardConstraint()]
-
             return container
         }
 
@@ -474,7 +437,6 @@ struct ARSceneView: UIViewRepresentable {
             let textH = max.y - min.y
             textNode.pivot = SCNMatrix4MakeTranslation(textW / 2, textH / 2, 0)
 
-            // Resize background
             if let bgNode = node.childNode(withName: "_bg", recursively: false),
                let bg = bgNode.geometry as? SCNPlane {
                 let scale: CGFloat = 0.001
