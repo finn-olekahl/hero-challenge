@@ -46,6 +46,15 @@ struct RecordingTimeline: Codable {
             content: .measurement(measurement)
         ))
     }
+
+    /// Remove measurement entries whose ARMeasurement.id is in the given set.
+    /// Used to revoke intermediate line segments when a polygon is closed.
+    mutating func removeMeasurements(withIDs ids: Set<UUID>) {
+        entries.removeAll { entry in
+            guard let m = entry.content.measurementValue else { return false }
+            return ids.contains(m.id)
+        }
+    }
 }
 
 // MARK: - Timeline Entry

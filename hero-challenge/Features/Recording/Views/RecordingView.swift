@@ -135,17 +135,31 @@ struct RecordingView: View {
     private var bottomControls: some View {
         VStack(spacing: 16) {
             // Live measurement display
-            if showMeasureMode, let live = controller.measureController.liveDistanceText {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .heavy))
-                    Text(live)
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+            if showMeasureMode {
+                if controller.measureController.isNearFirstPoint {
+                    // Snap hint
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Tippe + um Fläche zu schließen")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.green.opacity(0.65), in: Capsule())
+                } else if let live = controller.measureController.liveDistanceText {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 10, weight: .heavy))
+                        Text(live)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.55), in: Capsule())
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.black.opacity(0.55), in: Capsule())
             }
 
             // Main action row
@@ -175,18 +189,19 @@ struct RecordingView: View {
 
                 // Central button: Photo or Measure point
                 if showMeasureMode {
-                    // Measure add point
+                    // Measure add point / close polygon
+                    let isSnap = controller.measureController.isNearFirstPoint
                     Button { controller.measureController.addPoint() } label: {
                         ZStack {
                             Circle()
-                                .stroke(Color.blue.opacity(0.6), lineWidth: 3)
+                                .stroke(isSnap ? Color.green.opacity(0.8) : Color.white.opacity(0.6), lineWidth: 3)
                                 .frame(width: 80, height: 80)
                             Circle()
-                                .fill(Color.blue.opacity(0.2))
+                                .fill(isSnap ? Color.green.opacity(0.3) : Color.white.opacity(0.12))
                                 .frame(width: 66, height: 66)
-                            Image(systemName: "plus")
+                            Image(systemName: isSnap ? "checkmark" : "plus")
                                 .font(.system(size: 30, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(isSnap ? .green : .white)
                         }
                     }
                     .disabled(!controller.measureController.isSurfaceDetected)

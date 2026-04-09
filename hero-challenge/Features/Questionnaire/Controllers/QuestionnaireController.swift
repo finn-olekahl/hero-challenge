@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import FoundationModels
 
 /// Controller that builds and manages the questionnaire from the AI evaluation.
 @Observable
@@ -7,6 +8,7 @@ final class QuestionnaireController {
     private(set) var items: [QuestionnaireItem] = []
     private(set) var currentIndex: Int = 0
     private(set) var isLoading: Bool = false
+    private(set) var isAutoMatching: Bool = false
 
     // API data for dropdowns
     private(set) var projects: [ProjectMatch] = []
@@ -14,7 +16,9 @@ final class QuestionnaireController {
     private(set) var services: [SupplyService] = []
 
     private let apiService: HeroAPIService
+    private let matchingService = FoundationMatchingService()
     let evaluation: AIEvaluation
+    let transcript: String
 
     var currentItem: QuestionnaireItem? {
         guard currentIndex < items.count else { return nil }
@@ -34,9 +38,10 @@ final class QuestionnaireController {
         items.filter { $0.answer.isAnswered }.count
     }
 
-    init(evaluation: AIEvaluation, apiService: HeroAPIService) {
+    init(evaluation: AIEvaluation, apiService: HeroAPIService, transcript: String = "") {
         self.evaluation = evaluation
         self.apiService = apiService
+        self.transcript = transcript
         buildQuestionnaire()
     }
 
@@ -89,9 +94,9 @@ final class QuestionnaireController {
         }
 
         items = questions
+        print("📋 [Questionnaire] Built \(items.count) items: \(items.map { "\($0.type.rawValue)" }.joined(separator: ", "))")
+        print("📋 [Questionnaire] Open questions from evaluation: \(evaluation.openQuestions.count)")
     }
-
-    // MARK: - Navigation
 
     func goToNext() {
         guard currentIndex < items.count else { return }
@@ -130,7 +135,6 @@ final class QuestionnaireController {
 
     func loadDropdownData() async {
         isLoading = true
-        defer { isLoading = false }
 
         // Fetch independently — one failure must not block the others
         async let projectsTask = apiService.fetchProjects()
@@ -140,6 +144,11 @@ final class QuestionnaireController {
         do { projects = try await projectsTask } catch { print("⚠️ Failed to load projects: \(error)") }
         do { products = try await productsTask } catch { print("⚠️ Failed to load products: \(error)") }
         do { services = try await servicesTask } catch { print("⚠️ Failed to load services: \(error)") }
+
+        isLoading = false
+
+        // Run auto-matching with Foundation Models in the background
+        await autoMatchSuggestions()
     }
 
     func searchProjects(_ query: String) async {
@@ -156,6 +165,79 @@ final class QuestionnaireController {
         do {
             products = try await apiService.fetchSupplyProducts(search: query)
         } catch { }
+    }
+
+    // MARK: - Auto-Matching with Foundation Models
+
+    private func autoMatchSuggestions() async {
+        print("🤖 [AutoMatch] Starting auto-matching...")
+        print("🤖 [AutoMatch] SystemLanguageModel available: \(SystemLanguageModel.default.isAvailable)")
+        guard SystemLanguageModel.default.isAvailable else {
+            print("🤖 [AutoMatch] ⛔ SystemLanguageModel not available — skipping")
+            return
+        }
+        isAutoMatching = true
+        defer {
+            isAutoMatching = false
+            print("🤖 [AutoMatch] Finished auto-matching")
+        }
+
+        // Auto-match project
+        let suggestedName = evaluation.context?.suggestedProjectName
+        let customerName = evaluation.context?.customerName
+        print("🤖 [AutoMatch] Project — suggestedName: \(suggestedName ?? "nil"), customerName: \(customerName ?? "nil"), candidates: \(projects.count)")
+
+        if let suggestedName, !projects.isEmpty {
+            if let match = await matchingService.matchProject(
+                suggestedName: suggestedName,
+                customerName: customerName,
+                candidates: projects
+            ) {
+                print("🤖 [AutoMatch] ✅ Project matched: \"\(match.displayName)\" (id: \(match.id))")
+                if let idx = items.firstIndex(where: { $0.type == .orderAssignment }),
+                   !items[idx].answer.isAnswered {
+                    items[idx].answer = .project(match)
+                    print("🤖 [AutoMatch] ✅ Project pre-filled at item index \(idx)")
+                } else {
+                    print("🤖 [AutoMatch] ⚠️ Project matched but item already answered or not found")
+                }
+            } else {
+                print("🤖 [AutoMatch] ❌ No project match found")
+            }
+        } else {
+            print("🤖 [AutoMatch] ⏭️ Skipping project match (no name or no candidates)")
+        }
+
+        // Auto-match products for each article question
+        print("🤖 [AutoMatch] Products — materials: \(evaluation.materials.count), product candidates: \(products.count)")
+        var materialIdx = 0
+        for (i, item) in items.enumerated() {
+            guard item.type == .articleSelection, materialIdx < evaluation.materials.count else {
+                if item.type == .articleSelection { materialIdx += 1 }
+                continue
+            }
+            let material = evaluation.materials[materialIdx]
+            materialIdx += 1
+
+            print("🤖 [AutoMatch] Article[\(materialIdx-1)] — category: \"\(material.category)\", desc: \"\(material.description)\"")
+
+            guard !item.answer.isAnswered else {
+                print("🤖 [AutoMatch] ⏭️ Article[\(materialIdx-1)] already answered — skipping")
+                continue
+            }
+
+            if let match = await matchingService.matchProduct(
+                category: material.category,
+                description: material.description,
+                candidates: products,
+                transcript: transcript
+            ) {
+                items[i].answer = .article(match)
+                print("🤖 [AutoMatch] ✅ Article[\(materialIdx-1)] matched: \"\(match.displayName)\" at item index \(i)")
+            } else {
+                print("🤖 [AutoMatch] ❌ Article[\(materialIdx-1)] no match found")
+            }
+        }
     }
 
     // MARK: - Collect Answers

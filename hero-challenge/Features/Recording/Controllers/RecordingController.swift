@@ -60,6 +60,9 @@ final class RecordingController {
         measureController.onMeasurementCompleted = { [weak self] measurement in
             self?.addMeasurement(measurement)
         }
+        measureController.onMeasurementsRevoked = { [weak self] ids in
+            self?.removeMeasurements(ids: ids)
+        }
     }
 
     // MARK: - Actions
@@ -90,7 +93,7 @@ final class RecordingController {
         }
 
         do {
-            try speechService.startRecording(startTime: recordingStartTime!)
+            try await speechService.startRecording(startTime: recordingStartTime!)
             state = .recording
             startTimer()
         } catch {
@@ -164,6 +167,10 @@ final class RecordingController {
     private func addMeasurement(_ measurement: ARMeasurement) {
         let timestamp = Date().timeIntervalSince(recordingStartTime ?? Date())
         timeline.addMeasurement(measurement, at: timestamp)
+    }
+
+    private func removeMeasurements(ids: [UUID]) {
+        timeline.removeMeasurements(withIDs: Set(ids))
     }
 
     private func startTimer() {

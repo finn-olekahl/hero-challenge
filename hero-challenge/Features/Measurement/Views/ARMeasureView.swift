@@ -46,7 +46,10 @@ struct ARMeasureView: UIViewRepresentable {
         private var liveLabelNode: SCNNode?
         private var liveStartDotNode: SCNNode?
         private var segmentNodes: [UUID: (line: SCNNode, label: SCNNode, startDot: SCNNode, endDot: SCNNode)] = [:]
-
+        // Area visualization
+        private var closingPreviewLineNode: SCNNode?
+        private var snapIndicatorNode: SCNNode?
+        private var finalizedAreaNodeGroups: [UUID: (fill: SCNNode, label: SCNNode)] = [:]
         private var photoCaptureObserver: NSObjectProtocol?
 
         init(controller: MeasureController, onPhotoCaptured: ((UIImage) -> Void)?) {
@@ -175,6 +178,7 @@ struct ARMeasureView: UIViewRepresentable {
 
             updateCrosshairNode(position: position, transform: hit.worldTransform)
             updateLiveLine()
+            updateClosingPreview()
             updateLabelPositions()
         }
 
@@ -232,12 +236,15 @@ struct ARMeasureView: UIViewRepresentable {
                     updateLabelScale(node: nodes.label)
                 }
             }
-            if let start = controller.currentStartPoint, let end = controller.crosshairWorldPosition {
+            if let start = controller.placedPoints.last, let end = controller.crosshairWorldPosition {
                 let target = getVisibleMidpoint(start: start.scnVector3, end: end)
                 if let liveLabel = liveLabelNode {
                     liveLabel.position = lerp(liveLabel.position, target, 0.25)
                     updateLabelScale(node: liveLabel)
                 }
+            }
+            for (_, group) in finalizedAreaNodeGroups {
+                updateLabelScale(node: group.label)
             }
         }
 
@@ -257,11 +264,20 @@ struct ARMeasureView: UIViewRepresentable {
         }
 
         private func updateLiveLine() {
-            guard let startPoint = controller.currentStartPoint,
+            guard let startPoint = controller.placedPoints.last,
                   let endPos = controller.crosshairWorldPosition else {
                 liveLineNode?.isHidden = true
                 liveLabelNode?.isHidden = true
                 liveStartDotNode?.isHidden = true
+                return
+            }
+
+            // If snapping to first point, suppress the live line
+            if controller.isNearFirstPoint {
+                liveLineNode?.isHidden = true
+                liveLabelNode?.isHidden = true
+                liveStartDotNode?.isHidden = false
+                liveStartDotNode?.position = startPoint.scnVector3
                 return
             }
 
@@ -345,6 +361,8 @@ struct ARMeasureView: UIViewRepresentable {
                 liveStartDotNode?.removeFromParentNode()
                 liveStartDotNode = nil
             }
+
+            syncAreaNodes()
         }
 
         // MARK: Node factories
@@ -447,6 +465,98 @@ struct ARMeasureView: UIViewRepresentable {
             }
 
             node.position = position
+        }
+
+        // MARK: Area Visualization
+
+        private func syncAreaNodes() {
+            // Sync finalized area polygons (fill + label only; edges are already in segments)
+            let currentFinalizedIDs = Set(controller.finalizedAreas.map(\.id))
+
+            for id in finalizedAreaNodeGroups.keys where !currentFinalizedIDs.contains(id) {
+                let group = finalizedAreaNodeGroups.removeValue(forKey: id)
+                group?.fill.removeFromParentNode()
+                group?.label.removeFromParentNode()
+            }
+
+            for polygon in controller.finalizedAreas where finalizedAreaNodeGroups[polygon.id] == nil {
+                let fill = makePolygonFillNode(points: polygon.points, color: UIColor.systemBlue.withAlphaComponent(0.15))
+                sceneView?.scene.rootNode.addChildNode(fill)
+
+                let label = makeLabelNode(text: polygon.formattedArea, at: polygon.centroid)
+                sceneView?.scene.rootNode.addChildNode(label)
+
+                finalizedAreaNodeGroups[polygon.id] = (fill, label)
+            }
+
+            // Snap indicator: show a pulsing ring at the first point when near
+            if controller.isNearFirstPoint, let first = controller.placedPoints.first {
+                if snapIndicatorNode == nil {
+                    let ring = SCNTorus(ringRadius: 0.02, pipeRadius: 0.003)
+                    ring.firstMaterial?.diffuse.contents = UIColor.systemGreen
+                    ring.firstMaterial?.lightingModel = .constant
+                    let node = SCNNode(geometry: ring)
+                    sceneView?.scene.rootNode.addChildNode(node)
+                    snapIndicatorNode = node
+                }
+                snapIndicatorNode?.position = first.scnVector3
+                snapIndicatorNode?.isHidden = false
+            } else {
+                snapIndicatorNode?.isHidden = true
+            }
+        }
+
+        private func updateClosingPreview() {
+            // Show a dashed-style preview line from crosshair back to first point when 2+ points placed
+            guard controller.placedPoints.count >= 2,
+                  let firstPoint = controller.placedPoints.first,
+                  let crosshairPos = controller.crosshairWorldPosition else {
+                closingPreviewLineNode?.isHidden = true
+                return
+            }
+
+            let end = crosshairPos
+            let closeDist = simd_distance(SIMD3<Float>(end.x, end.y, end.z), firstPoint.position)
+            guard closeDist > 0.005 else {
+                closingPreviewLineNode?.isHidden = true
+                return
+            }
+
+            let color: UIColor = controller.isNearFirstPoint
+                ? .systemGreen.withAlphaComponent(0.8)
+                : .white.withAlphaComponent(0.25)
+
+            if closingPreviewLineNode == nil {
+                closingPreviewLineNode = makeLineNode(from: end, to: firstPoint.scnVector3, distance: closeDist, color: color)
+                sceneView?.scene.rootNode.addChildNode(closingPreviewLineNode!)
+            } else {
+                updateLineNode(closingPreviewLineNode!, from: end, to: firstPoint.scnVector3, distance: closeDist)
+                if let cyl = closingPreviewLineNode?.childNode(withName: "_cyl", recursively: false)?.geometry as? SCNCylinder {
+                    cyl.firstMaterial?.diffuse.contents = color
+                }
+            }
+            closingPreviewLineNode?.isHidden = false
+        }
+
+        private func makePolygonFillNode(points: [MeasurementPoint], color: UIColor) -> SCNNode {
+            guard points.count >= 3 else { return SCNNode() }
+
+            let vertices = points.map { $0.scnVector3 }
+            var indices: [UInt16] = []
+            for i in 1..<(vertices.count - 1) {
+                indices.append(0)
+                indices.append(UInt16(i))
+                indices.append(UInt16(i + 1))
+            }
+
+            let vertexSource = SCNGeometrySource(vertices: vertices)
+            let element = SCNGeometryElement(indices: indices, primitiveType: .triangles)
+            let geometry = SCNGeometry(sources: [vertexSource], elements: [element])
+            geometry.firstMaterial?.diffuse.contents = color
+            geometry.firstMaterial?.lightingModel = .constant
+            geometry.firstMaterial?.isDoubleSided = true
+
+            return SCNNode(geometry: geometry)
         }
     }
 }

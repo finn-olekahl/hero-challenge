@@ -114,7 +114,8 @@ final class AIEvaluationService: Sendable {
         - measurement_indices bezieht sich auf den Index in der Messungsliste (0-basiert).
         - derived_from_measurement_index: Index der Messung, aus der die Menge abgeleitet wurde, oder null.
         - Wenn keine spezifischen Leistungen erkannt werden, erstelle eine generische "Handwerkerleistung".
-        - Stelle immer mindestens eine offene Frage.
+        - Stelle IMMER MEHRERE offene Fragen (mindestens 3). Frage nach allem, was für ein vollständiges Angebot fehlt: \
+          z.B. gewünschter Zeitraum, Materialqualität/-marke, Zugang zur Baustelle, Entsorgung Altmaterial, besondere Wünsche.
         - Alle Texte auf Deutsch.
         """
     }
@@ -125,7 +126,8 @@ final class AIEvaluationService: Sendable {
         if !measurements.isEmpty {
             prompt += "## Messungen\n"
             for (i, m) in measurements.enumerated() {
-                prompt += "[\(i)] \(m.type.rawValue): \(m.formattedValue)\n"
+                let typeDesc = m.type == .area ? "Flächenmessung" : "Längenmessung"
+                prompt += "[\(i)] \(typeDesc): \(m.formattedValue)\n"
             }
             prompt += "\n"
         }

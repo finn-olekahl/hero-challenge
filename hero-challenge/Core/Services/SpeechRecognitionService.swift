@@ -25,7 +25,7 @@ final class SpeechRecognitionService: NSObject {
         }
     }
 
-    func startRecording(startTime: Date) throws {
+    func startRecording(startTime: Date) async throws {
         guard let speechRecognizer, speechRecognizer.isAvailable else {
             throw SpeechError.notAvailable
         }
@@ -36,9 +36,12 @@ final class SpeechRecognitionService: NSObject {
         recordingStartTime = startTime
         lastTranscript = ""
 
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        // Move heavy audio session setup off the main thread
+        try await Task.detached(priority: .userInitiated) {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        }.value
 
         setupRecognitionRequest()
         installAudioTap()

@@ -5,13 +5,10 @@ import Observation
 import UIKit
 #endif
 
-/// Measurement modes available during recording.
-enum MeasureMode {
-    case length
-    case area
-}
-
 /// Controller managing AR measurement state during a recording session.
+/// Unified flow: place points to create connected line segments.
+/// When the crosshair is near the first point (≥3 points), tapping closes the polygon
+/// and automatically calculates the enclosed area — like Apple's Measure app.
 @Observable
 final class MeasureController {
 
@@ -23,59 +20,81 @@ final class MeasureController {
     }()
     #endif
 
+    /// Distance threshold (meters) for snapping crosshair to the first point to close a polygon.
+    private let snapThreshold: Float = 0.08
+
     // MARK: - State
 
+    /// Committed line segments with distance labels.
     private(set) var segments: [MeasurementSegment] = []
-    private(set) var currentStartPoint: MeasurementPoint?
+    /// The current chain of placed points (first point → live line to crosshair).
+    private(set) var placedPoints: [MeasurementPoint] = []
+    /// Finalized area polygons.
+    private(set) var finalizedAreas: [AreaPolygon] = []
+
     var crosshairWorldPosition: SCNVector3?
     var isSurfaceDetected: Bool = false
     var surfaceNormal: SIMD3<Float> = SIMD3<Float>(0, 1, 0)
     var instructionText: String = "iPhone bewegen um Fläche zu erkennen."
-    var mode: MeasureMode = .length
-
-    /// Area points for polygon-based area measurement.
-    private(set) var areaPoints: [MeasurementPoint] = []
 
     // MARK: - Computed
 
-    var isLiveMeasuring: Bool { currentStartPoint != nil }
-    var canUndo: Bool { currentStartPoint != nil || !segments.isEmpty || !areaPoints.isEmpty }
-    var canClear: Bool { currentStartPoint != nil || !segments.isEmpty || !areaPoints.isEmpty }
+    /// Whether a live measurement line is being drawn from the last placed point to the crosshair.
+    var isLiveMeasuring: Bool { !placedPoints.isEmpty }
 
+    /// Whether the crosshair is close enough to the first point to close a polygon.
+    var isNearFirstPoint: Bool {
+        guard placedPoints.count >= 3,
+              let crosshair = crosshairWorldPosition,
+              let first = placedPoints.first else { return false }
+        let dist = simd_distance(first.position, SIMD3<Float>(crosshair.x, crosshair.y, crosshair.z))
+        return dist < snapThreshold
+    }
+
+    var canUndo: Bool { !placedPoints.isEmpty || !segments.isEmpty || !finalizedAreas.isEmpty }
+    var canClear: Bool { canUndo }
+
+    /// Live distance text from last placed point to crosshair.
     var liveDistanceText: String? {
-        guard let start = currentStartPoint, let end = crosshairWorldPosition else { return nil }
-        let d = simd_distance(start.position, SIMD3<Float>(end.x, end.y, end.z))
+        guard let last = placedPoints.last, let end = crosshairWorldPosition else { return nil }
+        if isNearFirstPoint { return nil } // suppress when about to snap
+        let d = simd_distance(last.position, SIMD3<Float>(end.x, end.y, end.z))
         if d >= 1 { return String(format: "%.2f m", d) }
         return String(format: "%.1f cm", d * 100)
     }
 
     /// Callback when a measurement is finalized.
     var onMeasurementCompleted: ((ARMeasurement) -> Void)?
+    /// Callback when previously-reported line measurements should be removed
+    /// (e.g. they were intermediate segments of a now-closed polygon).
+    var onMeasurementsRevoked: (([UUID]) -> Void)?
+
+    /// IDs of line measurements reported during the current point chain
+    /// that should be revoked if the chain becomes a closed polygon.
+    private var pendingLineMeasurementIDs: [UUID] = []
 
     // MARK: - Actions
 
     func addPoint() {
         guard isSurfaceDetected, let position = crosshairWorldPosition else { return }
-        let point = MeasurementPoint(position)
 
         #if os(iOS)
         hapticGenerator.impactOccurred()
         hapticGenerator.prepare()
         #endif
 
-        switch mode {
-        case .length:
-            addLengthPoint(point)
-        case .area:
-            addAreaPoint(point)
+        // If near the first point and enough points to form an area → close polygon
+        if isNearFirstPoint {
+            closePolygon()
+            return
         }
-    }
 
-    private func addLengthPoint(_ point: MeasurementPoint) {
-        if let start = currentStartPoint {
-            let segment = MeasurementSegment(start: start, end: point)
+        let point = MeasurementPoint(position)
+
+        // If we already have points, create a segment from the last point to this one
+        if let last = placedPoints.last {
+            let segment = MeasurementSegment(start: last, end: point)
             segments.append(segment)
-            currentStartPoint = point
             instructionText = segment.formattedDistance
 
             let measurement = ARMeasurement(
@@ -84,27 +103,31 @@ final class MeasureController {
                 unit: "m"
             )
             onMeasurementCompleted?(measurement)
+            pendingLineMeasurementIDs.append(measurement.id)
         } else {
-            currentStartPoint = point
-            instructionText = "Tippe + für den Endpunkt."
+            instructionText = "Nächsten Punkt setzen."
         }
+
+        placedPoints.append(point)
     }
 
-    private func addAreaPoint(_ point: MeasurementPoint) {
-        areaPoints.append(point)
+    private func closePolygon() {
+        guard placedPoints.count >= 3 else { return }
 
-        if areaPoints.count >= 3 {
-            // Show running area calculation
-            let area = calculatePolygonArea(areaPoints)
-            instructionText = String(format: "Fläche: %.2f m² — Tippe ✓ zum Abschließen", area)
-        } else {
-            instructionText = "Mindestens 3 Punkte für Flächenmessung setzen."
+        // Revoke intermediate line measurements — only the area matters
+        if !pendingLineMeasurementIDs.isEmpty {
+            onMeasurementsRevoked?(pendingLineMeasurementIDs)
+            pendingLineMeasurementIDs.removeAll()
         }
-    }
 
-    func finalizeArea() {
-        guard areaPoints.count >= 3 else { return }
-        let area = calculatePolygonArea(areaPoints)
+        // Add the closing segment (last → first)
+        let closingSegment = MeasurementSegment(start: placedPoints.last!, end: placedPoints.first!)
+        segments.append(closingSegment)
+
+        // Calculate & store area
+        let area = calculatePolygonArea(placedPoints)
+        let polygon = AreaPolygon(points: placedPoints, area: area)
+        finalizedAreas.append(polygon)
 
         let measurement = ARMeasurement(
             type: .area,
@@ -114,34 +137,50 @@ final class MeasureController {
         onMeasurementCompleted?(measurement)
 
         instructionText = String(format: "Fläche: %.2f m²", area)
-        areaPoints.removeAll()
+        placedPoints.removeAll()
+
+        #if os(iOS)
+        let heavy = UIImpactFeedbackGenerator(style: .heavy)
+        heavy.impactOccurred()
+        #endif
     }
 
     func undo() {
-        if mode == .area && !areaPoints.isEmpty {
-            areaPoints.removeLast()
-            if areaPoints.count >= 3 {
-                let area = calculatePolygonArea(areaPoints)
-                instructionText = String(format: "Fläche: %.2f m²", area)
+        if !placedPoints.isEmpty {
+            placedPoints.removeLast()
+            // Also remove the last segment that was created with this point
+            if !segments.isEmpty && !placedPoints.isEmpty {
+                segments.removeLast()
+            }
+            if placedPoints.isEmpty {
+                instructionText = "Punkt setzen zum Messen."
             } else {
-                instructionText = "Mindestens 3 Punkte für Flächenmessung setzen."
+                instructionText = "Nächsten Punkt setzen."
             }
             return
         }
 
-        if currentStartPoint != nil && segments.isEmpty {
-            currentStartPoint = nil
-            instructionText = "iPhone bewegen um Fläche zu erkennen."
-        } else if let last = segments.popLast() {
-            currentStartPoint = last.start
-            instructionText = "Tippe + für den Endpunkt."
+        if !finalizedAreas.isEmpty {
+            let polygon = finalizedAreas.removeLast()
+            // Remove segments that belong to this polygon (count = polygon.points.count)
+            let segmentsToRemove = polygon.points.count
+            if segments.count >= segmentsToRemove {
+                segments.removeLast(segmentsToRemove)
+            }
+            instructionText = "Fläche rückgängig gemacht."
+            return
+        }
+
+        if !segments.isEmpty {
+            segments.removeLast()
+            instructionText = segments.last?.formattedDistance ?? "Punkt setzen zum Messen."
         }
     }
 
     func clear() {
         segments.removeAll()
-        currentStartPoint = nil
-        areaPoints.removeAll()
+        placedPoints.removeAll()
+        finalizedAreas.removeAll()
         instructionText = "iPhone bewegen um Fläche zu erkennen."
     }
 
@@ -150,8 +189,7 @@ final class MeasureController {
     private func calculatePolygonArea(_ points: [MeasurementPoint]) -> Double {
         guard points.count >= 3 else { return 0 }
 
-        // Use Newell's method for 3D polygon area (correct for non-convex polygons)
-        // Compute the signed area normal vector
+        // Use Newell's method for 3D polygon area
         var normal = SIMD3<Float>(0, 0, 0)
         let n = points.count
         for i in 0..<n {

@@ -67,3 +67,24 @@ struct MeasurementSegment: Identifiable, Equatable {
         lhs.id == rhs.id
     }
 }
+
+/// A finalized area polygon from connected measurement points.
+struct AreaPolygon: Identifiable, Equatable {
+    let id = UUID()
+    let points: [MeasurementPoint]
+    let area: Double
+
+    var formattedArea: String {
+        String(format: "%.2f m²", area)
+    }
+
+    var centroid: SCNVector3 {
+        let sum = points.reduce(SIMD3<Float>(0, 0, 0)) { $0 + $1.position }
+        let avg = sum / Float(points.count)
+        return SCNVector3(avg.x, avg.y + 0.015, avg.z)
+    }
+
+    static func == (lhs: AreaPolygon, rhs: AreaPolygon) -> Bool {
+        lhs.id == rhs.id
+    }
+}

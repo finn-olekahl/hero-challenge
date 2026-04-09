@@ -29,7 +29,7 @@ struct ContentView: View {
                     controller: recordingController,
                     onComplete: { eval in
                         self.evaluation = eval
-                        let qc = QuestionnaireController(evaluation: eval, apiService: apiService)
+                        let qc = QuestionnaireController(evaluation: eval, apiService: apiService, transcript: self.recordingController.currentTranscript)
                         self.questionnaireController = qc
                         withAnimation {
                             appState = .questionnaire

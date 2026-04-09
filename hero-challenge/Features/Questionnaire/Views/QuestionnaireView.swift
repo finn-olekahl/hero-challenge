@@ -12,7 +12,17 @@ struct QuestionnaireView: View {
                 // Progress bar
                 progressBar
 
-                if controller.isCompleted {
+                if controller.isAutoMatching {
+                    VStack(spacing: 16) {
+                        Spacer()
+                        ProgressView()
+                        Text("KI gleicht Vorschläge ab…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if controller.isCompleted {
                     completionView
                 } else if let item = controller.currentItem {
                     questionContent(item)
@@ -160,6 +170,12 @@ struct QuestionnaireView: View {
             Text("Projekt auswählen")
                 .font(.subheadline.weight(.medium))
 
+            if case .project(let p) = controller.currentItem?.answer, p != nil {
+                Label("Automatisch ausgewählt – tippe um zu ändern", systemImage: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
+
             if controller.isLoading {
                 ProgressView("Lade Projekte...")
             }
@@ -186,7 +202,16 @@ struct QuestionnaireView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background {
+                        if case .project(let selected) = controller.currentItem?.answer,
+                           selected?.id == project.id {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue.opacity(0.08))
+                        } else {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.secondarySystemBackground))
+                        }
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
@@ -198,6 +223,7 @@ struct QuestionnaireView: View {
 
     @State private var billingIsHourly = true
     @State private var hourCount: String = ""
+    @State private var hourDebounceTask: Task<Void, Never>?
 
     private var billingInput: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -224,8 +250,13 @@ struct QuestionnaireView: View {
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: hourCount) { _, newValue in
-                            let hours = Double(newValue.replacingOccurrences(of: ",", with: ".")) ?? 0
-                            controller.setBillingMethod(.hourly(hours: hours))
+                            hourDebounceTask?.cancel()
+                            hourDebounceTask = Task {
+                                try? await Task.sleep(for: .milliseconds(300))
+                                guard !Task.isCancelled else { return }
+                                let hours = Double(newValue.replacingOccurrences(of: ",", with: ".")) ?? 0
+                                controller.setBillingMethod(.hourly(hours: hours))
+                            }
                         }
                 }
             } else {
@@ -274,6 +305,12 @@ struct QuestionnaireView: View {
             Text("Produkt auswählen")
                 .font(.subheadline.weight(.medium))
 
+            if case .article(let a) = controller.currentItem?.answer, a != nil {
+                Label("Automatisch ausgewählt – tippe um zu ändern", systemImage: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
+
             TextField("Suchen...", text: $productSearchText)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: productSearchText) { _, newValue in
@@ -308,7 +345,16 @@ struct QuestionnaireView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background {
+                        if case .article(let selected) = controller.currentItem?.answer,
+                           selected?.id == product.id {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue.opacity(0.08))
+                        } else {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.secondarySystemBackground))
+                        }
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
