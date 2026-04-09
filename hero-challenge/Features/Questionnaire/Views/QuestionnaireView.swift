@@ -241,8 +241,8 @@ struct QuestionnaireView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(service.displayName)
                                         .font(.body)
-                                    if let price = service.price_net {
-                                        Text(String(format: "%.2f € / %@", price, service.unit ?? "Stk"))
+                                    if let price = service.net_price_per_unit {
+                                        Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }

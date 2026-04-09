@@ -55,6 +55,7 @@
 				B64CE0692F87DC4E009FE241 /* Sources */,
 				B64CE06A2F87DC4E009FE241 /* Frameworks */,
 				B64CE06B2F87DC4E009FE241 /* Resources */,
+				B6ENV0012F88B001009FE241 /* Copy .env to Bundle */,
 			);
 			buildRules = (
 			);
@@ -113,6 +114,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B6ENV0012F88B001009FE241 /* Copy .env to Bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.env",
+			);
+			name = "Copy .env to Bundle";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(PRODUCT_NAME).app/.env",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -f \"${SRCROOT}/.env\" ]; then\n  cp \"${SRCROOT}/.env\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/.env\"\nelse\n  echo \"warning: .env file not found at ${SRCROOT}/.env\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B64CE0692F87DC4E009FE241 /* Sources */ = {

@@ -1,0 +1,6 @@
+.env
+hero-challenge/.env
+*.xcuserstate
+xcuserdata/
+DerivedData/
+.build/

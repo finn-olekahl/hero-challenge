@@ -55,56 +55,84 @@ final class OfferController {
     private func buildDocumentActions() -> [[String: AnyCodable]] {
         var actions: [[String: AnyCodable]] = []
 
-        // Add position for each service + selected product
-        for (index, billing) in answers.billingMethods.enumerated() {
-            var action: [String: AnyCodable] = [
-                "type": AnyCodable("add_position"),
-                "position": AnyCodable(index + 1),
-                "name": AnyCodable(billing.service.name),
-                "description": AnyCodable(billing.service.description)
-            ]
-
-            // Set quantity from measurement or billing
+        // Add services — either as existing supply_service or as ad-hoc create_supply_service
+        for billing in answers.billingMethods {
             switch billing.method {
             case .hourly(let hours):
-                action["quantity"] = AnyCodable(hours)
-                action["unit"] = AnyCodable("Std.")
-            case .serviceType(let service):
-                if let qty = billing.service.suggestedQuantity {
-                    action["quantity"] = AnyCodable(qty)
+                // Create an ad-hoc service position for hourly billing
+                var serviceAction: [String: AnyCodable] = [
+                    "name": AnyCodable(billing.service.name),
+                    "unit_type": AnyCodable("Std."),
+                    "net_price_per_unit": AnyCodable(0),
+                    "vat_percent": AnyCodable(19.0),
+                    "quantity": AnyCodable(hours)
+                ]
+                if !billing.service.description.isEmpty {
+                    serviceAction["description"] = AnyCodable(billing.service.description)
                 }
-                action["unit"] = AnyCodable(service?.unit ?? billing.service.suggestedUnit ?? "Stk")
-                if let service, let price = service.price_net {
-                    action["unit_price"] = AnyCodable(price)
-                }
-            case .unselected:
-                if let qty = billing.service.suggestedQuantity {
-                    action["quantity"] = AnyCodable(qty)
-                }
-            }
+                actions.append(["create_supply_service": AnyCodable(serviceAction)])
 
-            actions.append(action)
+            case .serviceType(let supplyService):
+                if let supplyService {
+                    // Add an existing supply service from the catalog
+                    var serviceAction: [String: AnyCodable] = [
+                        "supplyServiceId": AnyCodable(supplyService.id)
+                    ]
+                    if let qty = billing.service.suggestedQuantity {
+                        serviceAction["quantity"] = AnyCodable(qty)
+                    }
+                    actions.append(["add_existing_service": AnyCodable(serviceAction)])
+                } else {
+                    // No specific service selected — create ad-hoc
+                    var serviceAction: [String: AnyCodable] = [
+                        "name": AnyCodable(billing.service.name),
+                        "unit_type": AnyCodable(billing.service.suggestedUnit ?? "Stk"),
+                        "net_price_per_unit": AnyCodable(0),
+                        "vat_percent": AnyCodable(19.0),
+                        "quantity": AnyCodable(billing.service.suggestedQuantity ?? 1.0)
+                    ]
+                    if !billing.service.description.isEmpty {
+                        serviceAction["description"] = AnyCodable(billing.service.description)
+                    }
+                    actions.append(["create_supply_service": AnyCodable(serviceAction)])
+                }
+
+            case .unselected:
+                // Create ad-hoc with defaults
+                var serviceAction: [String: AnyCodable] = [
+                    "name": AnyCodable(billing.service.name),
+                    "unit_type": AnyCodable(billing.service.suggestedUnit ?? "Stk"),
+                    "net_price_per_unit": AnyCodable(0),
+                    "vat_percent": AnyCodable(19.0),
+                    "quantity": AnyCodable(billing.service.suggestedQuantity ?? 1.0)
+                ]
+                if !billing.service.description.isEmpty {
+                    serviceAction["description"] = AnyCodable(billing.service.description)
+                }
+                actions.append(["create_supply_service": AnyCodable(serviceAction)])
+            }
         }
 
-        // Add positions for selected products
-        for (index, productEntry) in answers.selectedProducts.enumerated() {
-            if let product = productEntry.product {
-                var action: [String: AnyCodable] = [
-                    "type": AnyCodable("add_position"),
-                    "position": AnyCodable(answers.billingMethods.count + index + 1),
-                    "name": AnyCodable(product.displayName),
-                    "description": AnyCodable(productEntry.material.description)
+        // Add product positions for selected products
+        for productEntry in answers.selectedProducts {
+            if let product = productEntry.product, let productId = product.product_id {
+                // Add product by its catalog ID
+                let productAction: [String: AnyCodable] = [
+                    "product_id": AnyCodable(productId),
+                    "quantity": AnyCodable(productEntry.material.suggestedQuantity ?? 1.0)
                 ]
-
-                if let price = product.price_net {
-                    action["unit_price"] = AnyCodable(price)
-                }
-                if let qty = productEntry.material.suggestedQuantity {
-                    action["quantity"] = AnyCodable(qty)
-                }
-                action["unit"] = AnyCodable(product.unit ?? productEntry.material.suggestedUnit ?? "Stk")
-
-                actions.append(action)
+                actions.append(["add_product_position_by_id": AnyCodable(productAction)])
+            } else if let product = productEntry.product {
+                // Add product as a manual position
+                let productAction: [String: AnyCodable] = [
+                    "name": AnyCodable(product.displayName),
+                    "description": AnyCodable(productEntry.material.description),
+                    "unit_type": AnyCodable(product.unit ?? productEntry.material.suggestedUnit ?? "Stk"),
+                    "quantity": AnyCodable(productEntry.material.suggestedQuantity ?? 1.0),
+                    "net_price": AnyCodable(product.price_net ?? 0),
+                    "vat_percent": AnyCodable(product.vat_percent ?? 19.0)
+                ]
+                actions.append(["add_product_position": AnyCodable(productAction)])
             }
         }
 

@@ -12,8 +12,8 @@ struct ContentView: View {
     // API service (configured once)
     private let apiService: HeroAPIService = {
         let client = GraphQLClient(
-            baseURL: URL(string: "https://api.hero-software.de/v1/graphql")!,
-            token: "" // Set via environment or login
+            baseURL: URL(string: EnvConfig.heroAPIURL)!,
+            token: EnvConfig.heroAPIToken
         )
         return HeroAPIService(client: client)
     }()
