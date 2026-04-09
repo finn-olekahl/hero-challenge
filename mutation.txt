@@ -1,0 +1,382 @@
+add_custom_fields_to_schema
+properties: [CustomFields_PropertyInput]
+schemaId: String!
+: CustomFields_Schema
+Add a custom field to a schema
+
+add_field_service_job_assignment
+job_id: Int
+partner_id: Int
+: FieldService_Job
+Add assigned employee to a job
+
+add_logbook_entry
+logbook_entry: LogbookEntryInput
+: History
+Add an entry to the logbook
+
+add_partner
+partner: PartnerInput
+: Partner
+Add new add app user
+
+add_project_match_assignments
+project_match_id: Int
+assigned_user_ids: [Int]
+: ProjectMatch
+Add assigned employees to a project
+
+add_weather_logbook_entry
+project_match_id: Int
+: History
+Creates a weather entry
+
+create_absence
+absence: Employees_AbsenceInput
+: Employees_Absence
+Creates an absence
+
+create_calendar_event
+calendar_event: CalendarEventInput
+: CalendarEvent 
+Creates calendar event
+
+create_calendar_import
+calendar_import: CalendarImportInput
+partner_ids: [Int]
+: CalendarImport
+Creates an imported iCal calendar
+
+create_calendar_share_link
+categories: CalendarCategoryEnum
+events: CalendarEventSelection
+: CalendarShareLink
+creates an iCal link
+
+create_contact
+findExisting: Boolean
+contact: CustomerInput
+: Customer
+Creates a new contact
+
+create_custom_field_schema
+relates: CustomFields_SchemaRelationTypeEnum!
+: CustomFields_Schema
+create a schema for custom fields
+
+create_customer_address
+customer_address: CustomerAddressInput
+findExisting: Boolean
+: CustomerAddress
+creates a new customer address
+
+create_document
+input: Documents_CreateDocumentInput!
+actions: [Documents_DocumentBuilderActionInput!]!
+: Documents_CustomerDocumentDraft
+Create a document
+
+create_email_template
+email_template: CreateEmailTemplateInput!
+copy_from_template_id: Int
+: EmailTemplate
+Create single email template
+
+create_field_service_checklist
+job_id: Int
+project_match_id: Int
+checklist: FieldService_ChecklistInput
+: FieldService_Checklist
+Updates given checklist
+
+create_field_service_checklist_template
+checklist_template: FieldService_ChecklistTemplateInput
+: FieldService_ChecklistTemplate
+Creates checklist template
+
+create_field_service_job
+job: FieldService_JobInput
+: FieldService_Job
+Creates job for current user
+
+create_payment
+document_id: Int!
+payment: PaymentInput!
+: CustomerDocument
+Creates a new payment for the given document
+
+create_project_export
+match_id: Int
+options: [ProjectExportOptionEnum]
+: Boolean
+Requests a project export
+
+create_project_match
+project_match: ProjectMatchInput
+manual_assigned_user_ids: [Int]
+: ProjectMatch
+Creates a new project
+
+create_project_type
+project_type: ProjectTypeInput
+: ProjectType
+Creates a new project type
+
+create_stock_material
+stock_material: Stock_StockMaterialInput!
+: Stock_StockMaterial
+Creates a new stock material entity and sources if provided.
+
+create_supply_product_version
+supply_product_version: Documents_SupplyProductVersionInput!
+: Documents_SupplyProductVersion
+Creates a new supply product
+
+create_supply_service
+supply_service: Documents_SupplyServiceInput!
+: Documents_SupplyService
+Creates a new supply service
+
+create_webhook
+webhook: Webhooks_CreateWebhookInput
+: Webhooks_Webhook
+Create a new webhook
+
+delete_calendar_event
+id: Int
+: CalendarEvent
+Delete calendar_event
+
+delete_calendar_import
+uid: String
+: Boolean
+Delete a calendar_import by its UID
+
+delete_checklist
+checklist_id: Int
+: FieldService_Checklist
+Delete a checklist
+
+delete_company_account
+password: String!
+: Boolean
+Deletes the company account and all data
+
+delete_document
+document_id: Int
+: CustomerDocument
+Delete a document
+
+delete_project_match_assignments
+project_match_id: Int
+assigned_user_ids: [Int]
+: ProjectMatch
+Delete assigned employees from a project
+
+delete_webhook
+webhook_id: Int!
+: Boolean
+Delete a webhook
+
+read_notifications
+ids: [Int]
+: [Notification]
+Mark notifications as read
+
+Receipt_CreateReceipt
+input: Receipt_CreateReceiptInput!
+: Receipt_Receipt
+Create a new receipt with positions.
+
+Receipt_DeleteReceipt
+id: Int!
+: Receipt_Receipt
+Soft-delete a receipt.
+
+Receipt_UpdateReceipt
+input: Receipt_UpdateReceiptInput!
+: Receipt_Receipt
+Update an existing receipt with positions.
+
+remove_custom_field_from_schema
+schemaId: String!
+propertyUuid: String!
+: CustomFields_Schema
+Remove custom field from schema
+
+remove_field_service_job_assignment
+job_id: Int
+partner_id: Int
+: FieldService_Job
+Remove assigned employee from a job
+
+rotate_image
+id: Int
+direction: String
+: FileUpload
+Rotates an image
+
+send_mail
+email: EmailInput
+: OutboxMail
+Sends an e-mail
+
+set_custom_field_value
+schemaId: String!
+relationId: Int!
+properties: [CustomFields_PropertyValueInput]
+: CustomFields_Record
+Set the value of a custom field for a given relation. It can not exceed 10kb in size.
+
+set_user_password
+old: String!
+new: String!
+: Boolean
+Set the current user's password
+
+submit_document_signature
+document_id: Int
+signature_node: Documents_SignatureNodeInput
+: Documents_CustomerDocumentDraft
+Sign an existing document
+
+unreadNotifications
+ids: [Int]
+: [TopNavigationNotification]
+Mark notifications as unread
+
+update_absence
+absence: Employees_AbsenceInput
+: Employees_Absence
+Updates an absence
+
+update_calendar_event
+calendar_event: CalendarEventInput
+: CalendarEvent
+Updates calendar event
+
+update_calendar_import
+calendar_import: CalendarImportInput
+: CalendarImport
+Update a calendar_import
+
+update_company
+data: CompanyInput
+: Company
+Updates the company data
+
+update_contact
+contact: CustomerInput
+: Customer
+Updates an existing contact
+
+update_custom_fields_in_schema
+properties: [CustomFields_PropertyUpdate]
+schemaId: String!
+: CustomFields_Schema
+Update one or more custom fields in schema
+
+update_customer_address
+customer_address: CustomerAddressInput
+: CustomerAddress
+edits a customer address
+
+update_email_template
+email_template: UpdateEmailTemplateInput!
+: EmailTemplate
+Update single email template
+
+update_field_service_checklist
+checklist: FieldService_ChecklistInput
+: FieldService_Checklist
+Updates given checklist
+
+update_field_service_checklist_template
+checklist_template: FieldService_ChecklistTemplateInput
+: FieldService_ChecklistTemplate
+Updates given checklist template
+
+update_field_service_job
+job: FieldService_JobInput
+: FieldService_Job
+Updates job for current user
+
+update_field_service_object
+service_object: FieldService_ServiceObjectInput
+: FieldService_ServiceObject
+Updates service_object
+
+update_file_upload
+id: Int
+filename: String
+image_category: String
+delete: Boolean
+: FileUpload
+Updates a file upload
+
+update_partner
+partner: PartnerInput
+: Partner
+Update employee
+
+update_project_match
+project_match: ProjectMatchInput
+manual_assigned_user_ids: [Int]
+: ProjectMatch
+Updates a single project
+
+update_project_match_assignments
+project_match_id: Int
+assigned_user_ids: [Int]
+: ProjectMatch
+Updates a list of manual assigned user in project on base of given user ids
+
+update_project_type
+project_type: ProjectTypeInput
+: ProjectType
+Updates an existing project type
+
+update_supply_product_version
+supply_product_version: Documents_SupplyProductVersionInput!
+: Documents_SupplyProductVersion
+Updates an existing supply product
+
+update_supply_service
+supply_service: Documents_SupplyServiceInput!
+: Documents_SupplyService
+Updates an existing service
+
+update_task
+task: TaskInput
+: Task
+Updates task for current user
+
+update_tracking_time
+tracking_time: Employees_TrackingTimeInput
+: Employees_TrackingTime
+Updates tracking times for current user
+
+update_user_data
+user_data: UserDataInput
+: User
+Updates the current user's contact data
+
+update_webhook
+webhook: Webhooks_UpdateWebhookInput
+: Webhooks_Webhook
+Update a webhook
+
+upload_document
+document: CustomerDocumentInput!
+file_upload_uuid: String!
+target: LinkTargetEnum!
+target_id: Int!
+: CustomerDocument
+Upload a document
+
+upload_image
+file_upload_uuid: String!
+target: LinkTargetEnum
+target_id: Int!
+: FileUpload
+Add a previously uploaded image to a final target object. The image must be uploaded beforehand via the REST upload endpoint.
