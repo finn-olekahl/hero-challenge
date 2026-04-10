@@ -191,7 +191,8 @@ final class HeroAPIService: Sendable {
         text: String
     ) async throws -> HistoryEntry {
         let entry: [String: AnyCodable] = [
-            "target_project_match_id": AnyCodable(projectMatchId),
+            "target": AnyCodable("project_match"),
+            "target_id": AnyCodable(projectMatchId),
             "custom_text": AnyCodable(text)
         ]
 

@@ -33,7 +33,10 @@ struct ARMeasureView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: ARSCNView, coordinator: Coordinator) {
-        uiView.session.pause()
+        // Pausing the ARSession can block the main thread, do it detached
+        Task.detached(priority: .background) {
+            uiView.session.pause()
+        }
     }
 
     // MARK: - Coordinator
@@ -83,10 +86,19 @@ struct ARMeasureView: UIViewRepresentable {
                 controller.instructionText = "AR ist auf diesem Gerät nicht verfügbar."
                 return
             }
-            let config = ARWorldTrackingConfiguration()
-            config.planeDetection = [.horizontal, .vertical]
-            sceneView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
-            prewarmShaders()
+            
+            // Move AR configuration and session run to background to avoid main thread freeze
+            Task.detached(priority: .userInitiated) {
+                let config = ARWorldTrackingConfiguration()
+                config.planeDetection = [.horizontal, .vertical]
+                
+                // Running the session takes a considerable lock internally so we do it detached
+                sceneView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
+                
+                await MainActor.run {
+                    self.prewarmShaders()
+                }
+            }
         }
 
         func capturePhoto() {

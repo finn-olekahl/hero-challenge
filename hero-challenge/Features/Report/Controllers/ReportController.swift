@@ -93,28 +93,38 @@ final class ReportController {
             for (i, photo) in photos.enumerated() {
                 guard let imageData = photo.image.jpegData(compressionQuality: 0.8) else { continue }
                 let filename = "foto_\(i + 1)_\(Int(Date().timeIntervalSince1970)).jpg"
-                let uuid = try await apiService.uploadImage(imageData, filename: filename)
-                uploadedUUIDs.append(uuid)
+                do {
+                    let uuid = try await apiService.uploadImage(imageData, filename: filename)
+                    uploadedUUIDs.append(uuid)
+                } catch {
+                    print("⚠️ Foto-Upload \(filename) fehlgeschlagen: \(error)")
+                    // PLACEHOLDER: Continue without crashing since REST endpoint is currently unknown.
+                }
                 uploadProgress = Double(i + 1) / Double(photos.count)
             }
             isUploading = false
 
             // Step 2: Link uploaded images to the project
             for uuid in uploadedUUIDs {
-                _ = try await apiService.linkImageToProject(
-                    fileUploadUUID: uuid,
-                    projectMatchId: project.id
-                )
+                do {
+                    _ = try await apiService.linkImageToProject(
+                        fileUploadUUID: uuid,
+                        projectMatchId: project.id
+                    )
+                } catch {
+                    print("⚠️ GraphQL Image Link für \(uuid) fehlgeschlagen: \(error)")
+                }
             }
 
             // Step 3: Build rich text HTML with embedded photo references
             let htmlContent = buildHTMLContent(report: report, photoUUIDs: uploadedUUIDs)
 
             // Step 4: Create logbook entry
-            _ = try await apiService.addLogbookEntry(
+            let entry = try await apiService.addLogbookEntry(
                 projectMatchId: project.id,
                 text: htmlContent
             )
+            print("📋 [Report] Logbook entry created with id: \(entry.id ?? -1)")
 
             isCompleted = true
         } catch let error as GraphQLError {

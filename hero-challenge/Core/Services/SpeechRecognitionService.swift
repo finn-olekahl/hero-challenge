@@ -90,19 +90,33 @@ final class SpeechRecognitionService: NSObject {
         _isRecording = false
         stopSegmentTimer()
         snapshotSegment()
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
+        
+        let engine = audioEngine
+        let task = recognitionTask
+        let request = recognitionRequest
+        
         recognitionRequest = nil
         recognitionTask = nil
+        
+        Task.detached(priority: .background) {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            request?.endAudio()
+            task?.cancel()
+        }
     }
 
     func pauseRecording() {
         stopSegmentTimer()
         snapshotSegment()
-        audioEngine.pause()
-        recognitionRequest?.endAudio()
+        
+        let engine = audioEngine
+        let request = recognitionRequest
+        
+        Task.detached(priority: .background) {
+            engine.pause()
+            request?.endAudio()
+        }
     }
 
     func resumeRecording() throws {
