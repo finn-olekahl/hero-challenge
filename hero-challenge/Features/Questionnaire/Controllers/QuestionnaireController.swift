@@ -81,8 +81,8 @@ final class QuestionnaireController {
             }
         }
 
-        // Typ 2: Artikelnachfrage (only for offers)
-        if !isReport {
+        // Typ 2: Artikelnachfrage (for offers, and ONLY for workReports)
+        if evaluation.intent == .offer || evaluation.intent == .workReport {
             for material in evaluation.materials {
                 let quantityStr = material.suggestedQuantity.map { String(format: "%.1f %@", $0, material.suggestedUnit ?? "") } ?? ""
                 let articleQuestion = QuestionnaireItem(
@@ -96,50 +96,52 @@ final class QuestionnaireController {
             }
         }
 
-        // Typ 5: Mengenbestätigung (for each service with suggested quantity)
-        var coveredMeasurementIds = Set<UUID>()
-        for service in evaluation.services {
-            if let qty = service.suggestedQuantity {
-                let unitStr = service.suggestedUnit ?? ""
-                let questionText = Self.buildQuantityQuestion(for: service.name, unit: unitStr)
-                let source = Self.buildSourceDescription(measurements: service.associatedMeasurements, unit: unitStr)
-                let question = QuestionnaireItem(
-                    type: .quantityConfirmation,
-                    question: questionText,
-                    context: service.description,
-                    answer: .quantity(qty),
-                    unitLabel: unitStr,
-                    sourceDescription: source
-                )
-                questions.append(question)
-                // Track which measurements are already covered by service questions
-                for m in service.associatedMeasurements {
-                    coveredMeasurementIds.insert(m.id)
+        // Typ 5: Mengenbestätigung (for each service with suggested quantity - only for offers)
+        if evaluation.intent == .offer {
+            var coveredMeasurementIds = Set<UUID>()
+            for service in evaluation.services {
+                if let qty = service.suggestedQuantity {
+                    let unitStr = service.suggestedUnit ?? ""
+                    let questionText = Self.buildQuantityQuestion(for: service.name, unit: unitStr)
+                    let source = Self.buildSourceDescription(measurements: service.associatedMeasurements, unit: unitStr)
+                    let question = QuestionnaireItem(
+                        type: .quantityConfirmation,
+                        question: questionText,
+                        context: service.description,
+                        answer: .quantity(qty),
+                        unitLabel: unitStr,
+                        sourceDescription: source
+                    )
+                    questions.append(question)
+                    // Track which measurements are already covered by service questions
+                    for m in service.associatedMeasurements {
+                        coveredMeasurementIds.insert(m.id)
+                    }
                 }
             }
-        }
 
-        // Typ 5: Mengenbestätigung (for each material — ONLY if not already covered by a service quantity)
-        for material in evaluation.materials {
-            if let qty = material.suggestedQuantity {
-                // Skip if this material's measurement is already covered by a service question
-                if let derivedMeasurement = material.derivedFromMeasurement,
-                   coveredMeasurementIds.contains(derivedMeasurement.id) {
-                    continue
+            // Typ 5: Mengenbestätigung (for each material — ONLY if not already covered by a service quantity)
+            for material in evaluation.materials {
+                if let qty = material.suggestedQuantity {
+                    // Skip if this material's measurement is already covered by a service question
+                    if let derivedMeasurement = material.derivedFromMeasurement,
+                       coveredMeasurementIds.contains(derivedMeasurement.id) {
+                        continue
+                    }
+                    let unitStr = material.suggestedUnit ?? ""
+                    let questionText = Self.buildQuantityQuestion(for: material.category, unit: unitStr)
+                    let source = Self.buildMaterialSourceDescription(material: material)
+                    let question = QuestionnaireItem(
+                        type: .quantityConfirmation,
+                        question: questionText,
+                        context: material.description,
+                        answer: .quantity(qty),
+                        unitLabel: unitStr,
+                        referenceId: material.id,
+                        sourceDescription: source
+                    )
+                    questions.append(question)
                 }
-                let unitStr = material.suggestedUnit ?? ""
-                let questionText = Self.buildQuantityQuestion(for: material.category, unit: unitStr)
-                let source = Self.buildMaterialSourceDescription(material: material)
-                let question = QuestionnaireItem(
-                    type: .quantityConfirmation,
-                    question: questionText,
-                    context: material.description,
-                    answer: .quantity(qty),
-                    unitLabel: unitStr,
-                    referenceId: material.id,
-                    sourceDescription: source
-                )
-                questions.append(question)
             }
         }
 
