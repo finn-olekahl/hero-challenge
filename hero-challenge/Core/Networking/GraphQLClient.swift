@@ -57,6 +57,7 @@ final class GraphQLClient: Sendable {
         request.httpBody = try encoder.encode(body)
 
         // ── DEBUG REQUEST ──
+        #if DEBUG
         let requestBody = String(data: request.httpBody!, encoding: .utf8) ?? "<binary>"
         print("\n┌──── HERO GraphQL REQUEST ────")
         print("│ URL: \(baseURL.absoluteString)")
@@ -66,13 +67,15 @@ final class GraphQLClient: Sendable {
             print("│   \(line)")
         }
         print("└─────────────────────────────\n")
+        #endif
 
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let responseBody = String(data: data, encoding: .utf8) ?? "<binary>"
 
         // ── DEBUG RESPONSE ──
+        #if DEBUG
+        let responseBody = String(data: data, encoding: .utf8) ?? "<binary>"
         print("\n┌──── HERO GraphQL RESPONSE ────")
         print("│ Status: \(statusCode)")
         print("│ Body (\(data.count) bytes):")
@@ -89,9 +92,11 @@ final class GraphQLClient: Sendable {
             }
         }
         print("└───────────────────────────────\n")
+        #endif
 
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {
+            let responseBody = String(data: data, encoding: .utf8) ?? "<binary>"
             throw GraphQLError.httpError(statusCode: httpResponse.statusCode, body: responseBody)
         }
 
@@ -108,9 +113,11 @@ final class GraphQLClient: Sendable {
 
             return result
         } catch let decodeError as DecodingError {
+            #if DEBUG
             print("\n┌──── HERO DECODING ERROR ────")
             print("│ \(decodeError)")
             print("└─────────────────────────────\n")
+            #endif
             throw GraphQLError.decodingError(decodeError)
         }
     }

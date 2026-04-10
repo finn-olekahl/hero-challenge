@@ -309,9 +309,7 @@ struct ARMeasureView: UIViewRepresentable {
             }
             liveLineNode?.isHidden = false
 
-            let labelStr: String
-            if dist >= 1 { labelStr = String(format: "%.2f m", dist) }
-            else { labelStr = String(format: "%.1f cm", dist * 100) }
+            let labelStr = formattedDistance(dist)
 
             let mid = SCNVector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 0.015, (start.z + end.z) / 2)
 
@@ -342,7 +340,7 @@ struct ARMeasureView: UIViewRepresentable {
                 let lineNode = makeLineNode(from: start, to: end, distance: segment.distance, color: .white)
                 sceneView?.scene.rootNode.addChildNode(lineNode)
 
-                let labelNode = makeLabelNode(text: segment.formattedDistance, at: segment.midpoint)
+                let labelNode = makeLabelNode(text: segment.formattedDistanceText, at: segment.midpoint)
                 sceneView?.scene.rootNode.addChildNode(labelNode)
 
                 let startDot = makeDotNode(color: .white)

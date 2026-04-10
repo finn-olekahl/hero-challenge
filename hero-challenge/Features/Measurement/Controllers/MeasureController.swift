@@ -59,8 +59,7 @@ final class MeasureController {
         guard let last = placedPoints.last, let end = crosshairWorldPosition else { return nil }
         if isNearFirstPoint { return nil } // suppress when about to snap
         let d = simd_distance(last.position, SIMD3<Float>(end.x, end.y, end.z))
-        if d >= 1 { return String(format: "%.2f m", d) }
-        return String(format: "%.1f cm", d * 100)
+        return formattedDistance(d)
     }
 
     /// Callback when a measurement is finalized.
@@ -95,7 +94,7 @@ final class MeasureController {
         if let last = placedPoints.last {
             let segment = MeasurementSegment(start: last, end: point)
             segments.append(segment)
-            instructionText = segment.formattedDistance
+            instructionText = segment.formattedDistanceText
 
             let measurement = ARMeasurement(
                 type: .length,
@@ -173,7 +172,7 @@ final class MeasureController {
 
         if !segments.isEmpty {
             segments.removeLast()
-            instructionText = segments.last?.formattedDistance ?? "Punkt setzen zum Messen."
+            instructionText = segments.last?.formattedDistanceText ?? "Punkt setzen zum Messen."
         }
     }
 

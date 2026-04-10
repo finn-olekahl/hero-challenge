@@ -121,10 +121,7 @@ struct ARMeasurement: Codable, Identifiable {
         if type == .area {
             return String(format: "%.2f m²", value)
         }
-        if value >= 1 {
-            return String(format: "%.2f m", value)
-        }
-        return String(format: "%.1f cm", value * 100)
+        return formattedDistance(Float(value))
     }
 
     enum MeasurementType: String, Codable {

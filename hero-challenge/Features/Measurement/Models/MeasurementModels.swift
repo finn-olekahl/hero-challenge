@@ -1,6 +1,17 @@
 import Foundation
 import SceneKit
 
+// MARK: - Distance Formatting
+
+/// Formats a distance in meters as a human-readable string.
+/// Uses meters for values ≥ 1 m, centimeters otherwise.
+func formattedDistance(_ meters: Float) -> String {
+    if meters >= 1 {
+        return String(format: "%.2f m", meters)
+    }
+    return String(format: "%.1f cm", meters * 100)
+}
+
 /// A point placed in 3-D world space during measurement.
 struct MeasurementPoint: Equatable, Codable {
     let position: SIMD3<Float>
@@ -49,13 +60,8 @@ struct MeasurementSegment: Identifiable, Equatable {
         simd_distance(start.position, end.position)
     }
 
-    var formattedDistance: String {
-        let m = distance
-        if m >= 1 {
-            return String(format: "%.2f m", m)
-        } else {
-            return String(format: "%.1f cm", m * 100)
-        }
+    var formattedDistanceText: String {
+        formattedDistance(distance)
     }
 
     var midpoint: SCNVector3 {
