@@ -432,8 +432,7 @@ struct ReportView: View {
             ForEach(indices.prefix(6), id: \.self) { idx in
                 Image(uiImage: controller.photos[idx].image)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(minHeight: 80, maxHeight: 100)
+                    .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             if indices.count > 6 {

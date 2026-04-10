@@ -104,9 +104,9 @@ final class ReportController {
             }
             isUploading = false
 
-            // Determine target type based on intent
-            let targetType = intent == .workReport ? "field_service_job" : "project_match"
-            let targetId = project.id // Future consideration: Handle selecting a real FieldService_Job ID
+            // Both Arbeitsbericht and Baustellenbericht share the same logbook / project_match target
+            let targetType = "project_match"
+            let targetId = project.id
 
             // Step 2: Link uploaded images to the project/job
             for uuid in uploadedUUIDs {
