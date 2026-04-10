@@ -188,13 +188,11 @@ final class HeroAPIService: Sendable {
     /// Adds a logbook entry (Arbeitsbericht / Baustellenbericht) to a project.
     func addLogbookEntry(
         projectMatchId: Int,
-        text: String,
-        type: String = "report"
+        text: String
     ) async throws -> HistoryEntry {
         let entry: [String: AnyCodable] = [
-            "project_match_id": AnyCodable(projectMatchId),
-            "text": AnyCodable(text),
-            "type": AnyCodable(type)
+            "target_project_match_id": AnyCodable(projectMatchId),
+            "custom_text": AnyCodable(text)
         ]
 
         let result: AddLogbookEntryResponse = try await client.perform(

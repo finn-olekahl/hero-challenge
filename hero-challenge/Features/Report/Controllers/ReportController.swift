@@ -111,18 +111,21 @@ final class ReportController {
             let htmlContent = buildHTMLContent(report: report, photoUUIDs: uploadedUUIDs)
 
             // Step 4: Create logbook entry
-            let logbookType = intent == .workReport ? "work_report" : "site_report"
             _ = try await apiService.addLogbookEntry(
                 projectMatchId: project.id,
-                text: htmlContent,
-                type: logbookType
+                text: htmlContent
             )
 
             isCompleted = true
         } catch let error as GraphQLError {
             switch error {
-            case .httpError(let code, _):
-                errorMessage = "Serverfehler (HTTP \(code)). Bitte erneut versuchen."
+            case .httpError(let code, let body):
+                if code == 200 {
+                    // GraphQL-level error — show the actual message
+                    errorMessage = "API-Fehler: \(body)"
+                } else {
+                    errorMessage = "Serverfehler (HTTP \(code)). Bitte erneut versuchen."
+                }
             default:
                 errorMessage = "Fehler: \(error.localizedDescription)"
             }
