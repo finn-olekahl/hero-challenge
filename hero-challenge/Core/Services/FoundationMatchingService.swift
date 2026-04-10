@@ -53,7 +53,7 @@ final class FoundationMatchingService: Sendable {
         print("🧠 [FoundationMatch] Project keyword scores: \(ranked.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
 
         // Strong single keyword match — use directly
-        if ranked.count == 1 || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
+        if (ranked.count == 1 && ranked[0].score >= 3) || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
             let match = candidates[ranked[0].idx]
             print("🧠 [FoundationMatch] Project keyword winner: \"\(match.displayName)\" (score: \(ranked[0].score))")
             return match
@@ -61,7 +61,7 @@ final class FoundationMatchingService: Sendable {
 
         // --- Phase 2: Foundation Model ---
         guard SystemLanguageModel.default.isAvailable else {
-            if let best = ranked.first {
+            if let best = ranked.first, best.score >= 3 {
                 return candidates[best.idx]
             }
             return nil
@@ -84,8 +84,8 @@ final class FoundationMatchingService: Sendable {
             Du bist ein Matching-Assistent für Handwerker-Projekte. \
             Finde das am besten passende Projekt basierend auf dem vorgeschlagenen Namen und Kundennamen. \
             Beachte: Kundennamen können leicht abweichen (Meyer/Meier/Maier, Schmidt/Schmitt etc.). \
-            Priorisiere Übereinstimmung beim Kundennamen höher als beim Projektnamen. \
-            Wenn kein Projekt gut passt, gib -1 zurück.
+            WICHTIG: Rate nicht. Wenn kein Kandidat eindeutig zum Namen oder Kunden passt, musst du zwingend -1 zurückgeben. \
+            Priorisiere Übereinstimmung beim Kundennamen höher als beim Projektnamen.
             """)
 
         var prompt = "Vorgeschlagener Projektname: \"\(suggestedName)\""
@@ -110,7 +110,7 @@ final class FoundationMatchingService: Sendable {
             print("⚠️ Foundation Model project matching failed: \(error)")
         }
 
-        if let best = ranked.first {
+        if let best = ranked.first, best.score >= 3 {
             return candidates[best.idx]
         }
         return nil
@@ -175,14 +175,14 @@ final class FoundationMatchingService: Sendable {
         print("🧠 [FoundationMatch] Product scoring: \(prefiltered.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
 
         // Strong single winner — use directly
-        if prefiltered.count == 1 {
+        if prefiltered.count == 1 && prefiltered[0].score >= 4 {
             let match = candidates[prefiltered[0].idx]
             print("🧠 [FoundationMatch] Product single match: \"\(match.displayName)\"")
             return match
         }
 
         // Clear winner by score
-        if prefiltered.count >= 2 && prefiltered[0].score > prefiltered[1].score + 2 {
+        if prefiltered.count >= 2 && prefiltered[0].score >= 5 && prefiltered[0].score > prefiltered[1].score + 2 {
             let match = candidates[prefiltered[0].idx]
             print("🧠 [FoundationMatch] Product score winner: \"\(match.displayName)\" (\(prefiltered[0].score) vs \(prefiltered[1].score))")
             return match
@@ -190,7 +190,7 @@ final class FoundationMatchingService: Sendable {
 
         // --- Phase 2: Foundation Model tiebreaker ---
         guard SystemLanguageModel.default.isAvailable else {
-            if let best = prefiltered.first {
+            if let best = prefiltered.first, best.score >= 4 {
                 let match = candidates[best.idx]
                 print("🧠 [FoundationMatch] Product fallback (no LLM): \"\(match.displayName)\"")
                 return match
@@ -216,9 +216,9 @@ final class FoundationMatchingService: Sendable {
         let session = LanguageModelSession(instructions: """
             Du bist ein Matching-Assistent für Handwerker-Produkte. \
             Finde das am besten passende Produkt aus der Liste. \
+            WICHTIG: Rate nicht. Wenn kein Kandidat eindeutig zur gesuchten Kategorie und Beschreibung passt, musst du zwingend -1 zurückgeben. \
             Priorisiere: 1. Passende Produktkategorie, 2. Farbe/Variante, 3. Beschreibung. \
-            Achte besonders auf Details wie Farbe (weiß/rot/etc.), Material, Größe. \
-            Wenn kein Produkt gut passt, gib -1 zurück.
+            Achte besonders auf Details wie Farbe (weiß/rot/etc.), Material, Größe.
             """)
 
         var prompt = """
@@ -251,7 +251,7 @@ final class FoundationMatchingService: Sendable {
         }
 
         // Last resort: return best keyword match
-        if let best = prefiltered.first {
+        if let best = prefiltered.first, best.score >= 4 {
             let match = candidates[best.idx]
             print("🧠 [FoundationMatch] Product keyword fallback after LLM fail: \"\(match.displayName)\"")
             return match
