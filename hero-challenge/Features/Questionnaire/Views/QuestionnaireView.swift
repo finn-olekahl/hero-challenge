@@ -335,8 +335,11 @@ struct QuestionnaireView: View {
                 .onChange(of: productSearchText) { _, newValue in
                     searchTask?.cancel()
                     searchTask = Task {
-                        try? await Task.sleep(for: .milliseconds(300))
-                        guard !Task.isCancelled else { return }
+                        do {
+                            try await Task.sleep(for: .milliseconds(300))
+                        } catch {
+                            return
+                        }
                         await controller.searchProducts(newValue)
                     }
                 }

@@ -87,7 +87,7 @@ struct OfferView: View {
 
     private func reviewView(_ offer: GeneratedOffer) -> some View {
         ScrollView {
-            LazyVStack(spacing: 20) {
+            VStack(spacing: 20) {
                 // Header
                 headerSection(offer)
 
