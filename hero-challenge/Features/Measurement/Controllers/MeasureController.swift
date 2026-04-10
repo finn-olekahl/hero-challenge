@@ -79,7 +79,7 @@ final class MeasureController {
     /// Live distance text from last placed point to crosshair.
     var liveDistanceText: String? {
         guard let last = placedPoints.last, let end = crosshairWorldPosition else { return nil }
-        if isNearFirstPoint { return nil } // suppress when about to snap
+        if isNearFirstPoint { return nil }
         let d = simd_distance(last.position, SIMD3<Float>(end.x, end.y, end.z))
         if d >= 1 { return String(format: "%.2f m", d) }
         return String(format: "%.1f cm", d * 100)
@@ -137,13 +137,11 @@ final class MeasureController {
 
         let point = MeasurementPoint(position)
 
-        // If we already have points, create a segment from the last point to this one
         if let last = placedPoints.last {
             let segment = MeasurementSegment(start: last, end: point)
             segments.append(segment)
             instructionText = segment.formattedDistance
 
-            // Distance mode: 2 points → done
             if measurementMode == .distance {
                 let measurement = ARMeasurement(
                     type: .length,
@@ -162,7 +160,6 @@ final class MeasureController {
                 return
             }
 
-            // Area mode: intermediate segment
             let measurement = ARMeasurement(
                 type: .length,
                 value: Double(segment.distance),
@@ -182,17 +179,14 @@ final class MeasureController {
     private func closePolygon() {
         guard placedPoints.count >= 3 else { return }
 
-        // Revoke intermediate line measurements — only the area matters
         if !pendingLineMeasurementIDs.isEmpty {
             onMeasurementsRevoked?(pendingLineMeasurementIDs)
             pendingLineMeasurementIDs.removeAll()
         }
 
-        // Add the closing segment (last → first)
         let closingSegment = MeasurementSegment(start: placedPoints.last!, end: placedPoints.first!)
         segments.append(closingSegment)
 
-        // Calculate & store area
         let area = calculatePolygonArea(placedPoints)
         let polygon = AreaPolygon(points: placedPoints, area: area)
         finalizedAreas.append(polygon)
@@ -219,7 +213,6 @@ final class MeasureController {
     func undo() {
         if !placedPoints.isEmpty {
             placedPoints.removeLast()
-            // Also remove the last segment that was created with this point
             if !segments.isEmpty && !placedPoints.isEmpty {
                 segments.removeLast()
             }
@@ -233,7 +226,6 @@ final class MeasureController {
 
         if !finalizedAreas.isEmpty {
             let polygon = finalizedAreas.removeLast()
-            // Remove segments that belong to this polygon (count = polygon.points.count)
             let segmentsToRemove = polygon.points.count
             if segments.count >= segmentsToRemove {
                 segments.removeLast(segmentsToRemove)

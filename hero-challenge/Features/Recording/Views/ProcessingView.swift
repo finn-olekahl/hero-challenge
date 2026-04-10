@@ -23,7 +23,6 @@ struct ProcessingView: View {
 
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 colors: [Color(.systemBackground), Color.blue.opacity(0.06)],
                 startPoint: .top,
@@ -32,7 +31,6 @@ struct ProcessingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar with cancel
                 HStack {
                     Button(action: onCancel) {
                         Image(systemName: "xmark")
@@ -48,9 +46,7 @@ struct ProcessingView: View {
 
                 Spacer().frame(height: 24)
 
-                // Animated icon
                 ZStack {
-                    // Pulsing rings
                     ForEach(0..<3, id: \.self) { i in
                         Circle()
                             .stroke(Color.blue.opacity(0.15 - Double(i) * 0.04), lineWidth: 1.5)
@@ -256,7 +252,6 @@ struct ProcessingView: View {
             }
         }
 
-        // Stagger phase appearances
         for i in 0..<phases.count {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6 + Double(i) * 0.4) {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -265,16 +260,12 @@ struct ProcessingView: View {
             }
         }
 
-        // Complete phases on a schedule (the first ones finish visually before the API returns)
-        // Phase 0 ("Transkript") completes quickly — it's already done
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
             withAnimation { completedPhases = max(completedPhases, 1) }
         }
-        // Phase 1 ("Leistungen") takes a bit longer
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             withAnimation { completedPhases = max(completedPhases, 2) }
         }
-        // Matching phases complete after the AI finishes and matching occurs
     }
 
     private func completeAllPhasesAndFinish(qc: QuestionnaireController) {
@@ -284,7 +275,6 @@ struct ProcessingView: View {
     }
 
     private func completeAllPhasesAndNavigate(action: @escaping () -> Void) {
-        // Rapidly complete any remaining phases
         let remaining = phases.count - completedPhases
         for i in 0..<remaining {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.3) {
@@ -294,7 +284,6 @@ struct ProcessingView: View {
             }
         }
 
-        // Navigate after all phases visually complete
         let navigationDelay = Double(remaining) * 0.3 + 0.5
         DispatchQueue.main.asyncAfter(deadline: .now() + navigationDelay) {
             action()

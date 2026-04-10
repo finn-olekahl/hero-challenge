@@ -9,7 +9,6 @@ struct QuestionnaireView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Progress bar
                 progressBar
 
                 if controller.isCompleted {

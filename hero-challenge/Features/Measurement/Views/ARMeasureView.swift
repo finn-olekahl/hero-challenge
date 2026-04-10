@@ -21,7 +21,6 @@ struct ARMeasureView: UIViewRepresentable {
         view.rendersContinuously = true
 
         context.coordinator.sceneView = view
-        // Defer AR session start so the view renders a frame first
         DispatchQueue.main.async {
             context.coordinator.startSession()
         }
@@ -52,7 +51,6 @@ struct ARMeasureView: UIViewRepresentable {
         private var liveLabelNode: SCNNode?
         private var liveStartDotNode: SCNNode?
         private var segmentNodes: [UUID: (line: SCNNode, label: SCNNode, startDot: SCNNode, endDot: SCNNode)] = [:]
-        // Area visualization
         private var closingPreviewLineNode: SCNNode?
         private var snapIndicatorNode: SCNNode?
         private var finalizedAreaNodeGroups: [UUID: (fill: SCNNode, label: SCNNode)] = [:]
@@ -92,7 +90,6 @@ struct ARMeasureView: UIViewRepresentable {
                 let config = ARWorldTrackingConfiguration()
                 config.planeDetection = [.horizontal, .vertical]
                 
-                // Running the session takes a considerable lock internally so we do it detached
                 sceneView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
                 
                 await MainActor.run {

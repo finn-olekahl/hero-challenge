@@ -59,7 +59,6 @@ struct OfferView: View {
             VStack(spacing: 0) {
                 Spacer().frame(height: 40)
 
-                // Pulsing icon
                 ZStack {
                     ForEach(0..<3, id: \.self) { i in
                         Circle()

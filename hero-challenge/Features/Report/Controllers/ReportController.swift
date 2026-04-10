@@ -88,7 +88,6 @@ final class ReportController {
                 return
             }
 
-            // Step 1: Upload all photos and collect UUIDs
             var uploadedUUIDs: [String] = []
             for (i, photo) in photos.enumerated() {
                 guard let imageData = photo.image.jpegData(compressionQuality: 0.8) else { continue }
@@ -97,18 +96,15 @@ final class ReportController {
                     let uuid = try await apiService.uploadImage(imageData, filename: filename)
                     uploadedUUIDs.append(uuid)
                 } catch {
-                    print("⚠️ Foto-Upload \(filename) fehlgeschlagen: \(error)")
-                    // PLACEHOLDER: Continue without crashing since REST endpoint is currently unknown.
+                    continue
                 }
                 uploadProgress = Double(i + 1) / Double(photos.count)
             }
             isUploading = false
 
-            // Both Arbeitsbericht and Baustellenbericht share the same logbook / project_match target
             let targetType = "project_match"
             let targetId = project.id
 
-            // Step 2: Link uploaded images to the project/job
             for uuid in uploadedUUIDs {
                 do {
                     _ = try await apiService.linkImageToTarget(
@@ -117,20 +113,16 @@ final class ReportController {
                         targetId: targetId
                     )
                 } catch {
-                    print("⚠️ GraphQL Image Link für \(uuid) fehlgeschlagen: \(error)")
                 }
             }
 
-            // Step 3: Build rich text HTML with embedded photo references
             let htmlContent = buildHTMLContent(report: report, photoUUIDs: uploadedUUIDs)
 
-            // Step 4: Create logbook entry
             let entry = try await apiService.addLogbookEntry(
                 target: targetType,
                 targetId: targetId,
                 text: htmlContent
             )
-            print("📋 [Report] Logbook entry created with id: \(entry.id ?? -1)")
 
             isCompleted = true
         } catch let error as GraphQLError {
@@ -163,7 +155,6 @@ final class ReportController {
 
         for section in report.sections {
             html += "<h2>\(escapeHTML(section.heading))</h2>\n"
-            // Convert body paragraphs
             let paragraphs = section.body.components(separatedBy: "\n\n")
             for para in paragraphs {
                 let trimmed = para.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -172,7 +163,6 @@ final class ReportController {
                 }
             }
 
-            // Embed measurements
             if !section.measurementIndices.isEmpty {
                 html += "<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\">\n"
                 html += "<tr><th>Messung</th><th>Typ</th><th>Wert</th></tr>\n"
@@ -184,7 +174,6 @@ final class ReportController {
                 html += "</table>\n"
             }
 
-            // Embed photos
             for idx in section.photoIndices where idx < photoUUIDs.count {
                 let uuid = photoUUIDs[idx]
                 html += "<p><strong>Foto \(idx + 1):</strong></p>\n"

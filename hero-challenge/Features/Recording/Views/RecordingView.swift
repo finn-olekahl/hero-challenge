@@ -23,14 +23,12 @@ struct RecordingView: View {
             Color.black.ignoresSafeArea()
             #endif
 
-            // Only show crosshair when actively measuring
             if showMeasureMode && controller.measureController.phase == .measuring {
                 CrosshairOverlay(controller: controller.measureController)
             }
 
             recordingOverlay
 
-            // Photo flash overlay
             if showPhotoFlash {
                 Color.white
                     .ignoresSafeArea()
@@ -50,7 +48,6 @@ struct RecordingView: View {
         }
         .onChange(of: showMeasureMode) { _, isMeasure in
             if isMeasure && controller.measureController.phase != .measuring {
-                // When switching to measure tab, show type picker
                 controller.measureController.startNewMeasurement()
             }
         }
@@ -80,7 +77,6 @@ struct RecordingView: View {
 
     private var topBar: some View {
         HStack {
-            // Cancel
             Button { onCancel() } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.medium))
@@ -91,7 +87,6 @@ struct RecordingView: View {
 
             Spacer()
 
-            // Recording indicator
             if controller.isActive {
                 HStack(spacing: 8) {
                     Circle()
@@ -109,7 +104,6 @@ struct RecordingView: View {
 
             Spacer()
 
-            // Stats
             HStack(spacing: 12) {
                 Label("\(controller.photoCount)", systemImage: "photo")
                 Label("\(controller.measurementCount)", systemImage: "ruler")
@@ -146,14 +140,12 @@ struct RecordingView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 16) {
-            // Measurement info bar
             if showMeasureMode {
                 measureInfoBar
             }
 
             // Main action row
             HStack(alignment: .center) {
-                // Pause/Resume
                 if controller.state == .recording {
                     Button { controller.pauseRecording() } label: {
                         Image(systemName: "pause.fill")
@@ -176,12 +168,10 @@ struct RecordingView: View {
 
                 Spacer()
 
-                // Central button: depends on mode + phase
                 centralButton
 
                 Spacer()
 
-                // Stop recording
                 Button {
                     Task { await controller.stopRecording() }
                 } label: {
@@ -197,7 +187,6 @@ struct RecordingView: View {
             }
             .padding(.horizontal, 28)
 
-            // Mode tabs
             modeTabs
         }
         .padding(.bottom, 16)
@@ -210,11 +199,9 @@ struct RecordingView: View {
         if showMeasureMode {
             switch controller.measureController.phase {
             case .choosingType:
-                // Type picker replaces the button
                 measureTypePicker
 
             case .measuring:
-                // Add point / close polygon
                 let isSnap = controller.measureController.isNearFirstPoint
                 Button { controller.measureController.addPoint() } label: {
                     ZStack {
@@ -233,7 +220,6 @@ struct RecordingView: View {
                 .opacity(controller.measureController.isSurfaceDetected ? 1.0 : 0.4)
 
             case .completed:
-                // New measurement button
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         controller.measureController.startNewMeasurement()
@@ -253,7 +239,6 @@ struct RecordingView: View {
                 }
             }
         } else {
-            // Photo capture
             Button {
                 capturePhotoWithFlash()
             } label: {
@@ -404,7 +389,6 @@ struct RecordingView: View {
 
     private func capturePhotoWithFlash() {
         #if os(iOS)
-        // Trigger flash
         withAnimation(.easeIn(duration: 0.05)) {
             showPhotoFlash = true
         }
@@ -413,7 +397,6 @@ struct RecordingView: View {
                 showPhotoFlash = false
             }
         }
-        // Capture
         NotificationCenter.default.post(name: .capturePhoto, object: nil)
         #endif
     }

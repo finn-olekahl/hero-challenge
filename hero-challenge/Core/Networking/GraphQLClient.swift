@@ -56,39 +56,10 @@ final class GraphQLClient: Sendable {
         encoder.outputFormatting = .prettyPrinted
         request.httpBody = try encoder.encode(body)
 
-        // ── DEBUG REQUEST ──
-        let requestBody = String(data: request.httpBody!, encoding: .utf8) ?? "<binary>"
-        print("\n┌──── HERO GraphQL REQUEST ────")
-        print("│ URL: \(baseURL.absoluteString)")
-        print("│ Token: Bearer \(String(token.prefix(10)))...")
-        print("│ Body:")
-        for line in requestBody.components(separatedBy: "\n") {
-            print("│   \(line)")
-        }
-        print("└─────────────────────────────\n")
 
         let (data, response) = try await session.data(for: request)
 
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
         let responseBody = String(data: data, encoding: .utf8) ?? "<binary>"
-
-        // ── DEBUG RESPONSE ──
-        print("\n┌──── HERO GraphQL RESPONSE ────")
-        print("│ Status: \(statusCode)")
-        print("│ Body (\(data.count) bytes):")
-        // Pretty-print JSON if possible
-        if let json = try? JSONSerialization.jsonObject(with: data),
-           let pretty = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
-           let prettyStr = String(data: pretty, encoding: .utf8) {
-            for line in prettyStr.components(separatedBy: "\n") {
-                print("│   \(line)")
-            }
-        } else {
-            for line in responseBody.components(separatedBy: "\n") {
-                print("│   \(line)")
-            }
-        }
-        print("└───────────────────────────────\n")
 
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {
@@ -108,9 +79,6 @@ final class GraphQLClient: Sendable {
 
             return result
         } catch let decodeError as DecodingError {
-            print("\n┌──── HERO DECODING ERROR ────")
-            print("│ \(decodeError)")
-            print("└─────────────────────────────\n")
             throw GraphQLError.decodingError(decodeError)
         }
     }

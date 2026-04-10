@@ -54,7 +54,6 @@ final class SpeechRecognitionService: NSObject {
         lastSnapshotText = ""
         currentSegmentStart = 0
 
-        // Move all heavy audio setup off the main thread
         try await Task.detached(priority: .userInitiated) { [audioEngine] in
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
@@ -65,14 +64,13 @@ final class SpeechRecognitionService: NSObject {
             inputNode.removeTap(onBus: 0)
             let recordingFormat = inputNode.outputFormat(forBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak audioEngine] buffer, _ in
-                _ = audioEngine // prevent retain cycle warning
+                _ = audioEngine
             }
 
             audioEngine.prepare()
         }.value
 
         setupRecognitionRequest()
-        // Re-install tap with the actual request now that it exists
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: 0)
         let recordingFormat = inputNode.outputFormat(forBus: 0)

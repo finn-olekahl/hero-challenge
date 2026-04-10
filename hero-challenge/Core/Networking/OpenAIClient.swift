@@ -37,35 +37,12 @@ final class OpenAIClient: Sendable {
         encoder.outputFormatting = .prettyPrinted
         request.httpBody = try encoder.encode(body)
 
-        // ── DEBUG REQUEST ──
-        let requestBody = String(data: request.httpBody!, encoding: .utf8) ?? "<binary>"
-        print("\n┌──── OpenAI REQUEST ────")
-        print("│ URL: \(baseURL.absoluteString)")
-        print("│ Model: \(model)")
-        print("│ System prompt (\(systemPrompt.count) chars): \(String(systemPrompt.prefix(200)))...")
-        print("│ User prompt (\(userPrompt.count) chars): \(String(userPrompt.prefix(500)))...")
-        print("│ Full body (\(request.httpBody!.count) bytes)")
-        print("└────────────────────────\n")
 
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
         let rawResponse = String(data: data, encoding: .utf8) ?? "<binary>"
 
-        // ── DEBUG RESPONSE ──
-        print("\n┌──── OpenAI RESPONSE ────")
-        print("│ Status: \(statusCode)")
-        print("│ Body (\(data.count) bytes):")
-        if let json = try? JSONSerialization.jsonObject(with: data),
-           let pretty = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
-           let prettyStr = String(data: pretty, encoding: .utf8) {
-            for line in prettyStr.components(separatedBy: "\n") {
-                print("│   \(line)")
-            }
-        } else {
-            print("│   \(rawResponse.prefix(2000))")
-        }
-        print("└──────────────────────────\n")
 
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw OpenAIError.httpError(statusCode: http.statusCode, body: rawResponse)
@@ -77,9 +54,6 @@ final class OpenAIClient: Sendable {
             throw OpenAIError.noContent
         }
 
-        print("\n┌──── OpenAI PARSED CONTENT ────")
-        print("│ \(content)")
-        print("└────────────────────────────────\n")
 
         guard let jsonData = content.data(using: .utf8) else {
             throw OpenAIError.invalidJSON
@@ -88,10 +62,7 @@ final class OpenAIClient: Sendable {
         do {
             return try JSONDecoder().decode(T.self, from: jsonData)
         } catch {
-            print("\n┌──── OpenAI DECODING ERROR ────")
-            print("│ \(error)")
-            print("│ Content was: \(content)")
-            print("└────────────────────────────────\n")
+
             throw OpenAIError.decodingFailed(content: content, error: error)
         }
     }

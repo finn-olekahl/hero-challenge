@@ -129,7 +129,6 @@ final class HeroAPIService: Sendable {
     /// Uploads an image via the HERO REST upload endpoint.
     /// Returns the UUID of the uploaded file.
     func uploadImage(_ imageData: Data, filename: String) async throws -> String {
-        // The REST upload endpoint is always at /api/external/v9/upload on the same host
         guard var components = URLComponents(url: client.baseURL, resolvingAgainstBaseURL: false) else {
             throw GraphQLError.invalidURL
         }
@@ -142,7 +141,6 @@ final class HeroAPIService: Sendable {
         var request = URLRequest(url: uploadURL)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        // Reuse the token from the GraphQL client
         request.setValue("Bearer \(client.token)", forHTTPHeaderField: "Authorization")
 
         var body = Data()
@@ -159,13 +157,11 @@ final class HeroAPIService: Sendable {
             throw GraphQLError.httpError(statusCode: http.statusCode, body: "Upload fehlgeschlagen (HTTP \(http.statusCode))")
         }
 
-        // Parse the UUID from the response
         let uploadResponse = try JSONDecoder().decode(RESTUploadResponse.self, from: data)
         guard let uuid = uploadResponse.uuid else {
             throw GraphQLError.noData
         }
 
-        print("📤 [Upload] Image uploaded: \(filename) → UUID: \(uuid)")
         return uuid
     }
 

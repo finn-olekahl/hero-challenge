@@ -15,7 +15,6 @@ struct ClarificationView: View {
             Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar
                 HStack {
                     Button(action: onCancel) {
                         Image(systemName: "xmark")
@@ -31,7 +30,6 @@ struct ClarificationView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Header
                         VStack(spacing: 8) {
                             Image(systemName: "questionmark.circle")
                                 .font(.system(size: 40, weight: .medium))
@@ -47,7 +45,6 @@ struct ClarificationView: View {
                         }
                         .padding(.top, 16)
 
-                        // Questions
                         ForEach(controller.pendingQuestions) { question in
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(question.question)
@@ -72,7 +69,7 @@ struct ClarificationView: View {
                     .padding(.bottom, 100)
                 }
 
-                // Bottom buttons
+
                 VStack(spacing: 10) {
                     Button {
                         submit()
