@@ -55,6 +55,10 @@ struct ARMeasureView: UIViewRepresentable {
         private var finalizedAreaNodeGroups: [UUID: (fill: SCNNode, label: SCNNode)] = [:]
         private var photoCaptureObserver: NSObjectProtocol?
 
+        /// Throttle per-frame updates to reduce main-thread dispatches.
+        private var lastFrameUpdateTime: TimeInterval = 0
+        private let frameUpdateInterval: TimeInterval = 1.0 / 30.0  // 30 Hz instead of 60 Hz
+
         init(controller: MeasureController, onPhotoCaptured: ((UIImage) -> Void)?) {
             self.controller = controller
             self.onPhotoCaptured = onPhotoCaptured
@@ -150,7 +154,11 @@ struct ARMeasureView: UIViewRepresentable {
 
         nonisolated func renderer(_ renderer: any SCNSceneRenderer, updateAtTime time: TimeInterval) {
             DispatchQueue.main.async { [weak self] in
-                self?.performFrameUpdate()
+                guard let self else { return }
+                // Throttle to ~30 fps to reduce main-thread load
+                guard time - self.lastFrameUpdateTime >= self.frameUpdateInterval else { return }
+                self.lastFrameUpdateTime = time
+                self.performFrameUpdate()
             }
         }
 
@@ -194,9 +202,12 @@ struct ARMeasureView: UIViewRepresentable {
                 return SCNVector3((start.x + end.x) / 2, (start.y + end.y) / 2 + 0.015, (start.z + end.z) / 2)
             }
 
-            let steps = 150
+            let steps = 20
             var firstT: Float? = nil
             var lastT: Float? = nil
+            let boundsWidth = Float(sceneView.bounds.width)
+            let boundsHeight = Float(sceneView.bounds.height)
+            let padding: Float = 50
 
             for i in 0...steps {
                 let t = Float(i) / Float(steps)
@@ -206,13 +217,11 @@ struct ARMeasureView: UIViewRepresentable {
                     start.z + (end.z - start.z) * t
                 )
                 let proj = sceneView.projectPoint(pt)
-                if proj.z >= 0.0 && proj.z <= 1.0 {
-                    let padding: Float = 50
-                    if proj.x >= padding && proj.x <= Float(sceneView.bounds.width) - padding &&
-                       proj.y >= padding && proj.y <= Float(sceneView.bounds.height) - padding {
-                        if firstT == nil { firstT = t }
-                        lastT = t
-                    }
+                if proj.z >= 0.0 && proj.z <= 1.0 &&
+                   proj.x >= padding && proj.x <= boundsWidth - padding &&
+                   proj.y >= padding && proj.y <= boundsHeight - padding {
+                    if firstT == nil { firstT = t }
+                    lastT = t
                 }
             }
 
