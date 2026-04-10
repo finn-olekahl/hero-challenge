@@ -12,10 +12,7 @@ struct QuestionnaireView: View {
                 // Progress bar
                 progressBar
 
-                if controller.isAutoMatching {
-                    autoMatchingView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if controller.isCompleted {
+                if controller.isCompleted {
                     completionView
                 } else if let item = controller.currentItem {
                     questionContent(item)
@@ -30,9 +27,6 @@ struct QuestionnaireView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen", action: onCancel)
                 }
-            }
-            .task {
-                await controller.loadDropdownData()
             }
             .onChange(of: controller.currentIndex) { _, _ in
                 syncLocalState()
@@ -72,188 +66,6 @@ struct QuestionnaireView: View {
             timeframeText = t
         default:
             break
-        }
-    }
-
-    // MARK: - Auto-Matching Animated View
-
-    @State private var matchPulse: Bool = false
-    @State private var matchVisiblePhases: Int = 0
-    @State private var matchCompletedPhases: Int = 0
-    @State private var matchShowRecap: Bool = false
-
-    private let matchPhases = [
-        (icon: "folder", label: "Projekt wird zugeordnet"),
-        (icon: "shippingbox", label: "Produkte werden abgeglichen"),
-    ]
-
-    private var autoMatchingView: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(.systemBackground), Color.teal.opacity(0.06)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                Spacer().frame(height: 40)
-
-                // Pulsing icon
-                ZStack {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle()
-                            .stroke(Color.teal.opacity(0.15 - Double(i) * 0.04), lineWidth: 1.5)
-                            .frame(width: CGFloat(80 + i * 28), height: CGFloat(80 + i * 28))
-                            .scaleEffect(matchPulse ? 1.08 : 0.95)
-                            .animation(
-                                .easeInOut(duration: 1.8)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(i) * 0.3),
-                                value: matchPulse
-                            )
-                    }
-
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 34, weight: .medium))
-                        .foregroundStyle(.teal)
-                        .frame(width: 72, height: 72)
-                        .background(Color.teal.opacity(0.1), in: Circle())
-                }
-                .padding(.bottom, 28)
-
-                Text("KI gleicht Vorschläge ab")
-                    .font(.title2.weight(.bold))
-                    .padding(.bottom, 6)
-
-                Text("Daten werden mit deinem Account abgeglichen")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 32)
-
-                // Recap card
-                if matchShowRecap {
-                    matchRecapCard
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 28)
-                }
-
-                // Phases
-                VStack(spacing: 0) {
-                    ForEach(Array(matchPhases.enumerated()), id: \.offset) { index, phase in
-                        if index < matchVisiblePhases {
-                            matchPhaseRow(icon: phase.icon, label: phase.label, index: index)
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .leading).combined(with: .opacity),
-                                    removal: .opacity
-                                ))
-                        }
-                    }
-                }
-                .padding(.horizontal, 32)
-
-                Spacer()
-            }
-        }
-        .onAppear {
-            matchPulse = true
-            startMatchPhaseAnimations()
-        }
-        .onChange(of: controller.autoMatchCompletedPhases) { _, completed in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                matchCompletedPhases = completed
-            }
-        }
-    }
-
-    private var matchRecapCard: some View {
-        HStack(spacing: 16) {
-            matchRecapStat(icon: "folder", value: "\(controller.projects.count)", label: "Projekte")
-            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
-            matchRecapStat(icon: "shippingbox", value: "\(controller.products.count)", label: "Produkte")
-            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
-            matchRecapStat(icon: "tag", value: "\(controller.evaluation.materials.count)", label: "Materialien")
-        }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 20)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func matchRecapStat(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.teal)
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func matchPhaseRow(icon: String, label: String, index: Int) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                if index < matchCompletedPhases {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.green)
-                        .transition(.scale.combined(with: .opacity))
-                } else if index == matchCompletedPhases {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .tint(.teal)
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 16))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 22, height: 22)
-                }
-            }
-            .frame(width: 26, height: 26)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: matchCompletedPhases)
-
-            Text(label)
-                .font(.subheadline.weight(index <= matchCompletedPhases ? .medium : .regular))
-                .foregroundStyle(index <= matchCompletedPhases ? .primary : .tertiary)
-
-            Spacer()
-
-            if index < matchCompletedPhases {
-                Text("Fertig")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .transition(.opacity)
-            }
-        }
-        .padding(.vertical, 12)
-        .animation(.easeInOut(duration: 0.3), value: matchCompletedPhases)
-    }
-
-    private func startMatchPhaseAnimations() {
-        matchVisiblePhases = 0
-        matchCompletedPhases = 0
-        matchShowRecap = false
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                matchShowRecap = true
-            }
-        }
-
-        for i in 0..<matchPhases.count {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6 + Double(i) * 0.4) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    matchVisiblePhases = i + 1
-                }
-            }
         }
     }
 

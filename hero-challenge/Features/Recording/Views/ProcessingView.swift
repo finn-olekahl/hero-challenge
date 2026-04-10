@@ -4,7 +4,8 @@ import SwiftUI
 /// Shows a session recap and animated progress phases to make the wait feel shorter.
 struct ProcessingView: View {
     var controller: RecordingController
-    var onComplete: (AIEvaluation) -> Void
+    var apiService: HeroAPIService
+    var onComplete: (QuestionnaireController) -> Void
     var onNeedsClarification: (() -> Void)?
     var onCancel: () -> Void
 
@@ -16,7 +17,8 @@ struct ProcessingView: View {
     private let phases = [
         ProcessingPhase(icon: "waveform", label: "Transkript wird verarbeitet"),
         ProcessingPhase(icon: "wrench.and.screwdriver", label: "Leistungen werden erkannt"),
-        ProcessingPhase(icon: "shippingbox", label: "Materialien werden zugeordnet"),
+        ProcessingPhase(icon: "folder", label: "Projekt wird zugeordnet"),
+        ProcessingPhase(icon: "shippingbox", label: "Produkte werden abgeglichen")
     ]
 
     var body: some View {
@@ -114,8 +116,14 @@ struct ProcessingView: View {
         }
         .onChange(of: controller.state) { _, newState in
             if newState == .completed, let evaluation = controller.evaluation {
-                // Complete all remaining phases quickly, then navigate
-                completeAllPhasesAndFinish(evaluation: evaluation)
+                Task {
+                    let qc = QuestionnaireController(evaluation: evaluation, apiService: apiService, transcript: controller.currentTranscript)
+                    await qc.loadDropdownData()  // this will fetch + autoMatch
+                    
+                    await MainActor.run {
+                        completeAllPhasesAndFinish(qc: qc)
+                    }
+                }
             } else if newState == .clarification {
                 // Pre-scan found questions — navigate to clarification
                 completeAllPhasesAndNavigate {
@@ -260,18 +268,18 @@ struct ProcessingView: View {
         // Complete phases on a schedule (the first ones finish visually before the API returns)
         // Phase 0 ("Transkript") completes quickly — it's already done
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            withAnimation { completedPhases = 1 }
+            withAnimation { completedPhases = max(completedPhases, 1) }
         }
         // Phase 1 ("Leistungen") takes a bit longer
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             withAnimation { completedPhases = max(completedPhases, 2) }
         }
-        // Phase 2 only completes when the AI actually finishes (handled in onChange)
+        // Matching phases complete after the AI finishes and matching occurs
     }
 
-    private func completeAllPhasesAndFinish(evaluation: AIEvaluation) {
+    private func completeAllPhasesAndFinish(qc: QuestionnaireController) {
         completeAllPhasesAndNavigate {
-            onComplete(evaluation)
+            onComplete(qc)
         }
     }
 

@@ -44,9 +44,9 @@ struct ContentView: View {
             case .processing:
                 ProcessingView(
                     controller: recordingController,
-                    onComplete: { eval in
-                        self.evaluation = eval
-                        let qc = QuestionnaireController(evaluation: eval, apiService: apiService, transcript: self.recordingController.currentTranscript)
+                    apiService: apiService,
+                    onComplete: { qc in
+                        self.evaluation = qc.evaluation
                         self.questionnaireController = qc
                         withAnimation {
                             appState = .questionnaire
@@ -85,9 +85,9 @@ struct ContentView: View {
             case .evaluating:
                 ProcessingView(
                     controller: recordingController,
-                    onComplete: { eval in
-                        self.evaluation = eval
-                        let qc = QuestionnaireController(evaluation: eval, apiService: apiService, transcript: self.recordingController.currentTranscript)
+                    apiService: apiService,
+                    onComplete: { qc in
+                        self.evaluation = qc.evaluation
                         self.questionnaireController = qc
                         withAnimation {
                             appState = .questionnaire
