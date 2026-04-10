@@ -102,7 +102,7 @@ final class QuestionnaireController {
             for service in evaluation.services {
                 if let qty = service.suggestedQuantity {
                     let unitStr = service.suggestedUnit ?? ""
-                    let questionText = Self.buildQuantityQuestion(for: service.name, unit: unitStr)
+                    let questionText = service.quantityQuestion ?? "Welche Menge wird für \(service.name) benötigt?"
                     let source = Self.buildSourceDescription(measurements: service.associatedMeasurements, unit: unitStr)
                     let question = QuestionnaireItem(
                         type: .quantityConfirmation,
@@ -129,7 +129,7 @@ final class QuestionnaireController {
                         continue
                     }
                     let unitStr = material.suggestedUnit ?? ""
-                    let questionText = Self.buildQuantityQuestion(for: material.category, unit: unitStr)
+                    let questionText = material.quantityQuestion ?? "Welche Menge wird für \(material.category) benötigt?"
                     let source = Self.buildMaterialSourceDescription(material: material)
                     let question = QuestionnaireItem(
                         type: .quantityConfirmation,
@@ -387,63 +387,7 @@ final class QuestionnaireController {
         )
     }
 
-    // MARK: - Quantity Question Helpers
-
-    /// Builds a clear, action-oriented question for a quantity confirmation.
-    private static func buildQuantityQuestion(for name: String, unit: String) -> String {
-        let lowName = name.lowercased()
-        let lowUnit = unit.lowercased()
-
-        // Area-based (m²)
-        if lowUnit == "m²" || lowUnit == "qm" {
-            if lowName.contains("streich") || lowName.contains("maler") || lowName.contains("farbe") || lowName.contains("anstrich") {
-                return "Welche Fläche soll gestrichen werden?"
-            }
-            if lowName.contains("fliese") || lowName.contains("verleg") {
-                return "Welche Fläche soll gefliest werden?"
-            }
-            if lowName.contains("tapete") || lowName.contains("tapez") {
-                return "Welche Fläche soll tapeziert werden?"
-            }
-            if lowName.contains("boden") || lowName.contains("parkett") || lowName.contains("laminat") {
-                return "Welche Bodenfläche soll verlegt werden?"
-            }
-            if lowName.contains("putz") || lowName.contains("verputz") {
-                return "Welche Fläche soll verputzt werden?"
-            }
-            if lowName.contains("dämm") || lowName.contains("isolier") {
-                return "Welche Fläche soll gedämmt werden?"
-            }
-            return "Wie viel Fläche umfasst \(name)?"
-        }
-
-        // Volume (l, liter)
-        if lowUnit == "l" || lowUnit.hasPrefix("liter") {
-            return "Wie viel \(name) wird benötigt?"
-        }
-
-        // Weight (kg)
-        if lowUnit == "kg" {
-            return "Wie viel \(name) wird benötigt?"
-        }
-
-        // Length-based (m, lfm)
-        if lowUnit == "m" || lowUnit == "lfm" {
-            return "Welche Länge wird für \(name) benötigt?"
-        }
-
-        // Hours
-        if lowUnit == "std" || lowUnit == "h" || lowUnit == "stunden" {
-            return "Wie viele Stunden werden für \(name) benötigt?"
-        }
-
-        // Pieces
-        if lowUnit == "stk" || lowUnit == "stück" {
-            return "Wie viele Stück \(name) werden benötigt?"
-        }
-
-        return "Welche Menge wird für \(name) benötigt?"
-    }
+    // MARK: - Source Description Helpers
 
     /// Builds a human-readable description of where a service quantity came from.
     private static func buildSourceDescription(measurements: [ARMeasurement], unit: String) -> String {

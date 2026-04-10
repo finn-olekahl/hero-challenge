@@ -30,14 +30,16 @@ struct IdentifiedService: Codable, Identifiable {
     let associatedMeasurements: [ARMeasurement]
     let suggestedQuantity: Double?
     let suggestedUnit: String?
+    let quantityQuestion: String?
 
-    init(name: String, description: String, associatedMeasurements: [ARMeasurement] = [], suggestedQuantity: Double? = nil, suggestedUnit: String? = nil) {
+    init(name: String, description: String, associatedMeasurements: [ARMeasurement] = [], suggestedQuantity: Double? = nil, suggestedUnit: String? = nil, quantityQuestion: String? = nil) {
         self.id = UUID()
         self.name = name
         self.description = description
         self.associatedMeasurements = associatedMeasurements
         self.suggestedQuantity = suggestedQuantity
         self.suggestedUnit = suggestedUnit
+        self.quantityQuestion = quantityQuestion
     }
 }
 
@@ -48,14 +50,16 @@ struct IdentifiedMaterial: Codable, Identifiable {
     let suggestedQuantity: Double?
     let suggestedUnit: String?
     let derivedFromMeasurement: ARMeasurement?
+    let quantityQuestion: String?
 
-    init(category: String, description: String, suggestedQuantity: Double? = nil, suggestedUnit: String? = nil, derivedFromMeasurement: ARMeasurement? = nil) {
+    init(category: String, description: String, suggestedQuantity: Double? = nil, suggestedUnit: String? = nil, derivedFromMeasurement: ARMeasurement? = nil, quantityQuestion: String? = nil) {
         self.id = UUID()
         self.category = category
         self.description = description
         self.suggestedQuantity = suggestedQuantity
         self.suggestedUnit = suggestedUnit
         self.derivedFromMeasurement = derivedFromMeasurement
+        self.quantityQuestion = quantityQuestion
     }
 }
 

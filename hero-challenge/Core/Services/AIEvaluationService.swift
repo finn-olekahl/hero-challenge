@@ -183,7 +183,8 @@ final class AIEvaluationService: Sendable {
               "description": "string",
               "measurement_indices": [0],
               "suggested_quantity": 12.5,
-              "suggested_unit": "m²"
+              "suggested_unit": "m²",
+              "quantity_question": "Welche Fläche soll gefliest werden?"
             }
           ],
           "materials": [
@@ -192,7 +193,8 @@ final class AIEvaluationService: Sendable {
               "description": "string",
               "suggested_quantity": 15.0,
               "suggested_unit": "m²",
-              "derived_from_measurement_index": 0
+              "derived_from_measurement_index": 0,
+              "quantity_question": "Wie viele Fliesen werden benötigt?"
             }
           ],
           "context": {
@@ -222,6 +224,11 @@ final class AIEvaluationService: Sendable {
           NIEMALS "l" (klein) verwenden – der korrekte Wert ist "L" (groß). \
           Berechne die Materialmenge in der korrekten Einkaufseinheit aus den Messungen \
           (z.B. 20m² Wand × 0.15 L/m² = 3.0 L Farbe; 12m² × 3.5 kg/m² = 42 kg Kleber).
+        - **quantity_question**: Wenn suggested_quantity gesetzt ist, generiere eine kurze, \
+          klare Bestätigungsfrage auf Deutsch, die den Handwerker nach der Menge fragt. \
+          Die Frage soll kontextbezogen und handlungsorientiert sein. \
+          Beispiele: "Welche Fläche soll gestrichen werden?", "Wie viele Meter Kabel werden benötigt?", \
+          "Wie viel Fliesenkleber wird benötigt?". Null wenn kein suggested_quantity vorhanden.
         - Alle Texte auf Deutsch.
         """
     }
@@ -295,20 +302,23 @@ final class AIEvaluationService: Sendable {
                 description: "Boden- oder Wandfliesen verlegen",
                 associatedMeasurements: areaM,
                 suggestedQuantity: area,
-                suggestedUnit: "m²"
+                suggestedUnit: "m²",
+                quantityQuestion: "Welche Fläche soll gefliest werden?"
             ))
             materials.append(IdentifiedMaterial(
                 category: "Fliesen",
                 description: "Bodenfliesen passend zum Raum",
                 suggestedQuantity: area.map { $0 * 1.1 },
                 suggestedUnit: "m²",
-                derivedFromMeasurement: areaM.first
+                derivedFromMeasurement: areaM.first,
+                quantityQuestion: "Wie viele Fliesen werden benötigt?"
             ))
             materials.append(IdentifiedMaterial(
                 category: "Fliesenkleber",
                 description: "Flexkleber für Bodenfliesen",
                 suggestedQuantity: area.map { $0 * 3.5 },
-                suggestedUnit: "kg"
+                suggestedUnit: "kg",
+                quantityQuestion: "Wie viel Fliesenkleber wird benötigt?"
             ))
         }
 
@@ -319,13 +329,15 @@ final class AIEvaluationService: Sendable {
                 description: "Wände streichen / tapezieren",
                 associatedMeasurements: areaM,
                 suggestedQuantity: areaM.first?.value,
-                suggestedUnit: "m²"
+                suggestedUnit: "m²",
+                quantityQuestion: "Welche Fläche soll gestrichen werden?"
             ))
             materials.append(IdentifiedMaterial(
                 category: "Wandfarbe",
                 description: "Innenfarbe weiß",
                 suggestedQuantity: areaM.first.map { $0.value * 0.15 },
-                suggestedUnit: "l"
+                suggestedUnit: "l",
+                quantityQuestion: "Wie viel Wandfarbe wird benötigt?"
             ))
         }
 
@@ -336,7 +348,8 @@ final class AIEvaluationService: Sendable {
                 description: "Rohrverlegung und Anschlussarbeiten",
                 associatedMeasurements: lengthM,
                 suggestedQuantity: lengthM.first?.value,
-                suggestedUnit: "m"
+                suggestedUnit: "m",
+                quantityQuestion: "Welche Rohrlänge wird benötigt?"
             ))
         }
 
@@ -433,6 +446,7 @@ private struct OpenAIEvaluationResponse: Decodable {
         let measurement_indices: [Int]?
         let suggested_quantity: Double?
         let suggested_unit: String?
+        let quantity_question: String?
     }
 
     struct MaterialResponse: Decodable {
@@ -441,6 +455,7 @@ private struct OpenAIEvaluationResponse: Decodable {
         let suggested_quantity: Double?
         let suggested_unit: String?
         let derived_from_measurement_index: Int?
+        let quantity_question: String?
     }
 
     struct ContextResponse: Decodable {
@@ -464,7 +479,8 @@ private struct OpenAIEvaluationResponse: Decodable {
                 description: svc.description,
                 associatedMeasurements: associated,
                 suggestedQuantity: svc.suggested_quantity,
-                suggestedUnit: svc.suggested_unit
+                suggestedUnit: svc.suggested_unit,
+                quantityQuestion: svc.quantity_question
             )
         }
 
@@ -477,7 +493,8 @@ private struct OpenAIEvaluationResponse: Decodable {
                 description: mat.description,
                 suggestedQuantity: mat.suggested_quantity,
                 suggestedUnit: mat.suggested_unit,
-                derivedFromMeasurement: derived
+                derivedFromMeasurement: derived,
+                quantityQuestion: mat.quantity_question
             )
         }
 
