@@ -169,14 +169,14 @@ final class HeroAPIService: Sendable {
         return uuid
     }
 
-    /// Links a previously uploaded image to a project via GraphQL.
-    func linkImageToProject(fileUploadUUID: String, projectMatchId: Int) async throws -> FileUpload {
+    /// Links a previously uploaded image to a project or field service job via GraphQL.
+    func linkImageToTarget(fileUploadUUID: String, target: String, targetId: Int) async throws -> FileUpload {
         let result: FileUploadResponse = try await client.perform(
             query: Mutations.uploadImage,
             variables: [
                 "file_upload_uuid": AnyCodable(fileUploadUUID),
-                "target": AnyCodable("project_match"),
-                "target_id": AnyCodable(projectMatchId)
+                "target": AnyCodable(target),
+                "target_id": AnyCodable(targetId)
             ],
             responseType: FileUploadResponse.self
         )
@@ -187,12 +187,13 @@ final class HeroAPIService: Sendable {
 
     /// Adds a logbook entry (Arbeitsbericht / Baustellenbericht) to a project.
     func addLogbookEntry(
-        projectMatchId: Int,
+        target: String,
+        targetId: Int,
         text: String
     ) async throws -> HistoryEntry {
         let entry: [String: AnyCodable] = [
-            "target": AnyCodable("project_match"),
-            "target_id": AnyCodable(projectMatchId),
+            "target": AnyCodable(target),
+            "target_id": AnyCodable(targetId),
             "custom_text": AnyCodable(text)
         ]
 

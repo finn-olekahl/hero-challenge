@@ -104,12 +104,17 @@ final class ReportController {
             }
             isUploading = false
 
-            // Step 2: Link uploaded images to the project
+            // Determine target type based on intent
+            let targetType = intent == .workReport ? "field_service_job" : "project_match"
+            let targetId = project.id // Future consideration: Handle selecting a real FieldService_Job ID
+
+            // Step 2: Link uploaded images to the project/job
             for uuid in uploadedUUIDs {
                 do {
-                    _ = try await apiService.linkImageToProject(
+                    _ = try await apiService.linkImageToTarget(
                         fileUploadUUID: uuid,
-                        projectMatchId: project.id
+                        target: targetType,
+                        targetId: targetId
                     )
                 } catch {
                     print("⚠️ GraphQL Image Link für \(uuid) fehlgeschlagen: \(error)")
@@ -121,7 +126,8 @@ final class ReportController {
 
             // Step 4: Create logbook entry
             let entry = try await apiService.addLogbookEntry(
-                projectMatchId: project.id,
+                target: targetType,
+                targetId: targetId,
                 text: htmlContent
             )
             print("📋 [Report] Logbook entry created with id: \(entry.id ?? -1)")
