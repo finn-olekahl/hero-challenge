@@ -50,12 +50,16 @@ final class FoundationMatchingService: Sendable {
         }
 
         let ranked = scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
+        #if DEBUG
         print("🧠 [FoundationMatch] Project keyword scores: \(ranked.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
+        #endif
 
         // Strong single keyword match — use directly
         if ranked.count == 1 || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
             let match = candidates[ranked[0].idx]
+            #if DEBUG
             print("🧠 [FoundationMatch] Project keyword winner: \"\(match.displayName)\" (score: \(ranked[0].score))")
+            #endif
             return match
         }
 
@@ -95,19 +99,27 @@ final class FoundationMatchingService: Sendable {
         prompt += "\n\nKandidaten:\n\(candidateList)"
         prompt += "\n\nWelcher Kandidat passt am besten?"
 
+        #if DEBUG
         print("🧠 [FoundationMatch] Project LLM prompt (\(llmCandidates.count) candidates)")
+        #endif
 
         do {
             let response = try await session.respond(to: prompt, generating: MatchResult.self)
             let idx = response.content.bestIndex
+            #if DEBUG
             print("🧠 [FoundationMatch] Project LLM result index: \(idx)")
+            #endif
             if idx >= 0 && idx < llmCandidates.count {
                 let match = candidates[llmCandidates[idx].originalIdx]
+                #if DEBUG
                 print("🧠 [FoundationMatch] Project matched: \"\(match.displayName)\"")
+                #endif
                 return match
             }
         } catch {
+            #if DEBUG
             print("⚠️ Foundation Model project matching failed: \(error)")
+            #endif
         }
 
         if let best = ranked.first {
@@ -172,19 +184,25 @@ final class FoundationMatchingService: Sendable {
 
         let prefiltered = scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
 
+        #if DEBUG
         print("🧠 [FoundationMatch] Product scoring: \(prefiltered.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
+        #endif
 
         // Strong single winner — use directly
         if prefiltered.count == 1 {
             let match = candidates[prefiltered[0].idx]
+            #if DEBUG
             print("🧠 [FoundationMatch] Product single match: \"\(match.displayName)\"")
+            #endif
             return match
         }
 
         // Clear winner by score
         if prefiltered.count >= 2 && prefiltered[0].score > prefiltered[1].score + 2 {
             let match = candidates[prefiltered[0].idx]
+            #if DEBUG
             print("🧠 [FoundationMatch] Product score winner: \"\(match.displayName)\" (\(prefiltered[0].score) vs \(prefiltered[1].score))")
+            #endif
             return match
         }
 
@@ -192,7 +210,9 @@ final class FoundationMatchingService: Sendable {
         guard SystemLanguageModel.default.isAvailable else {
             if let best = prefiltered.first {
                 let match = candidates[best.idx]
+                #if DEBUG
                 print("🧠 [FoundationMatch] Product fallback (no LLM): \"\(match.displayName)\"")
+                #endif
                 return match
             }
             return nil
@@ -233,27 +253,39 @@ final class FoundationMatchingService: Sendable {
         prompt += "\n\nProdukt-Kandidaten:\n\(candidateList)"
         prompt += "\n\nWelcher Kandidat passt am besten?"
 
+        #if DEBUG
         print("🧠 [FoundationMatch] Product LLM prompt (\(llmCandidates.count) candidates):\n\(prompt)")
+        #endif
 
         do {
             let response = try await session.respond(to: prompt, generating: MatchResult.self)
             let idx = response.content.bestIndex
+            #if DEBUG
             print("🧠 [FoundationMatch] Product LLM result index: \(idx)")
+            #endif
             if idx >= 0 && idx < llmCandidates.count {
                 let match = candidates[llmCandidates[idx].originalIdx]
+                #if DEBUG
                 print("🧠 [FoundationMatch] Product matched: \"\(match.displayName)\"")
+                #endif
                 return match
             } else {
+                #if DEBUG
                 print("🧠 [FoundationMatch] Product index out of range or -1")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("⚠️ Foundation Model product matching failed: \(error)")
+            #endif
         }
 
         // Last resort: return best keyword match
         if let best = prefiltered.first {
             let match = candidates[best.idx]
+            #if DEBUG
             print("🧠 [FoundationMatch] Product keyword fallback after LLM fail: \"\(match.displayName)\"")
+            #endif
             return match
         }
 

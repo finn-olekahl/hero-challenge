@@ -152,8 +152,10 @@ final class QuestionnaireController {
         }
 
         items = questions
+        #if DEBUG
         print("📋 [Questionnaire] Built \(items.count) items: \(items.map { "\($0.type.rawValue)" }.joined(separator: ", "))")
         print("📋 [Questionnaire] Open questions from evaluation: \(evaluation.openQuestions.count)")
+        #endif
     }
 
     func goToNext() {
@@ -244,23 +246,31 @@ final class QuestionnaireController {
     // MARK: - Auto-Matching with Foundation Models
 
     private func autoMatchSuggestions() async {
+        #if DEBUG
         print("🤖 [AutoMatch] Starting auto-matching...")
         print("🤖 [AutoMatch] SystemLanguageModel available: \(SystemLanguageModel.default.isAvailable)")
+        #endif
         guard SystemLanguageModel.default.isAvailable else {
+            #if DEBUG
             print("🤖 [AutoMatch] ⛔ SystemLanguageModel not available — skipping")
+            #endif
             return
         }
         isAutoMatching = true
         autoMatchCompletedPhases = 0
         defer {
             isAutoMatching = false
+            #if DEBUG
             print("🤖 [AutoMatch] Finished auto-matching")
+            #endif
         }
 
         // Auto-match project
         let suggestedName = evaluation.context?.suggestedProjectName
         let customerName = evaluation.context?.customerName
+        #if DEBUG
         print("🤖 [AutoMatch] Project — suggestedName: \(suggestedName ?? "nil"), customerName: \(customerName ?? "nil"), candidates: \(projects.count)")
+        #endif
 
         if let suggestedName, !projects.isEmpty {
             if let match = await matchingService.matchProject(
@@ -268,25 +278,25 @@ final class QuestionnaireController {
                 customerName: customerName,
                 candidates: projects
             ) {
+                #if DEBUG
                 print("🤖 [AutoMatch] ✅ Project matched: \"\(match.displayName)\" (id: \(match.id))")
+                #endif
                 if let idx = items.firstIndex(where: { $0.type == .orderAssignment }),
                    !items[idx].answer.isAnswered {
                     items[idx].answer = .project(match)
+                    #if DEBUG
                     print("🤖 [AutoMatch] ✅ Project pre-filled at item index \(idx)")
-                } else {
-                    print("🤖 [AutoMatch] ⚠️ Project matched but item already answered or not found")
+                    #endif
                 }
-            } else {
-                print("🤖 [AutoMatch] ❌ No project match found")
             }
-        } else {
-            print("🤖 [AutoMatch] ⏭️ Skipping project match (no name or no candidates)")
         }
 
         autoMatchCompletedPhases = 1
 
         // Auto-match products for each article question
+        #if DEBUG
         print("🤖 [AutoMatch] Products — materials: \(evaluation.materials.count), product candidates: \(products.count)")
+        #endif
         var materialIdx = 0
         for (i, item) in items.enumerated() {
             guard item.type == .articleSelection, materialIdx < evaluation.materials.count else {
@@ -296,12 +306,7 @@ final class QuestionnaireController {
             let material = evaluation.materials[materialIdx]
             materialIdx += 1
 
-            print("🤖 [AutoMatch] Article[\(materialIdx-1)] — category: \"\(material.category)\", desc: \"\(material.description)\"")
-
-            guard !item.answer.isAnswered else {
-                print("🤖 [AutoMatch] ⏭️ Article[\(materialIdx-1)] already answered — skipping")
-                continue
-            }
+            guard !item.answer.isAnswered else { continue }
 
             if let match = await matchingService.matchProduct(
                 category: material.category,
@@ -310,17 +315,16 @@ final class QuestionnaireController {
                 transcript: transcript
             ) {
                 items[i].answer = .article(match)
+                #if DEBUG
                 print("🤖 [AutoMatch] ✅ Article[\(materialIdx-1)] matched: \"\(match.displayName)\" at item index \(i)")
+                #endif
 
                 // Update matching quantity question's unit from the product's catalog unit
                 if let productUnit = match.unit, !productUnit.isEmpty,
                    let qtyIdx = items.firstIndex(where: { $0.type == .quantityConfirmation && $0.referenceId == material.id }) {
                     items[qtyIdx].unitLabel = productUnit
                     items[qtyIdx].context = "Einheit aus Produktdaten: \(productUnit)"
-                    print("🤖 [AutoMatch] 📐 Updated quantity unit to \"\(productUnit)\" for \(material.category)")
                 }
-            } else {
-                print("🤖 [AutoMatch] ❌ Article[\(materialIdx-1)] no match found")
             }
         }
 
