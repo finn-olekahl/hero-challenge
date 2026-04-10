@@ -277,10 +277,8 @@ final class QuestionnaireController {
                 if let idx = items.firstIndex(where: { $0.type == .orderAssignment }),
                    !items[idx].answer.isAnswered {
                     items[idx].answer = .project(match)
-                } else {
-            } else {
+                }
             }
-        } else {
         }
 
         autoMatchCompletedPhases = 1
@@ -311,7 +309,6 @@ final class QuestionnaireController {
                     items[qtyIdx].unitLabel = productUnit
                     items[qtyIdx].context = "Einheit aus Produktdaten: \(productUnit)"
                 }
-            } else {
             }
         }
 

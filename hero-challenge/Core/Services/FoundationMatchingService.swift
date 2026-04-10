@@ -52,7 +52,6 @@ final class FoundationMatchingService: Sendable {
         let ranked = scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
 
         if (ranked.count == 1 && ranked[0].score >= 3) || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
-        if (ranked.count == 1 && ranked[0].score >= 3) || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
             let match = candidates[ranked[0].idx]
             return match
         }
