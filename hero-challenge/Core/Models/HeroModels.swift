@@ -104,8 +104,9 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
     let internal_identifier: String?
     let base_data: SupplyProductBaseData?
 
-    /// API returns `id: null` for product versions — use product_id as stable identifier
-    var id: String { product_id ?? nr ?? UUID().uuidString }
+    /// Stable identifier — API returns `id: null` for product versions.
+    /// Falls back to product_id → nr → a one-time generated UUID.
+    let id: String
 
     var displayName: String {
         base_data?.name ?? nr ?? "Produkt"
@@ -116,6 +117,29 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case product_id, nr, base_price, list_price, vat_percent, internal_identifier, base_data
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        product_id = try container.decodeIfPresent(String.self, forKey: .product_id)
+        nr = try container.decodeIfPresent(String.self, forKey: .nr)
+        base_price = try container.decodeIfPresent(Double.self, forKey: .base_price)
+        list_price = try container.decodeIfPresent(Double.self, forKey: .list_price)
+        vat_percent = try container.decodeIfPresent(Double.self, forKey: .vat_percent)
+        internal_identifier = try container.decodeIfPresent(String.self, forKey: .internal_identifier)
+        base_data = try container.decodeIfPresent(SupplyProductBaseData.self, forKey: .base_data)
+        id = product_id ?? nr ?? UUID().uuidString
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(product_id, forKey: .product_id)
+        try container.encodeIfPresent(nr, forKey: .nr)
+        try container.encodeIfPresent(base_price, forKey: .base_price)
+        try container.encodeIfPresent(list_price, forKey: .list_price)
+        try container.encodeIfPresent(vat_percent, forKey: .vat_percent)
+        try container.encodeIfPresent(internal_identifier, forKey: .internal_identifier)
+        try container.encodeIfPresent(base_data, forKey: .base_data)
     }
 }
 

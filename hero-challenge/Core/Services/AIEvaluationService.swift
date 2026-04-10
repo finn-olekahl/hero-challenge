@@ -205,7 +205,7 @@ final class AIEvaluationService: Sendable {
                 category: "Wandfarbe",
                 description: "Innenfarbe weiß",
                 suggestedQuantity: areaM.first.map { $0.value * 0.15 },
-                suggestedUnit: "l"
+                suggestedUnit: "L"
             ))
         }
 

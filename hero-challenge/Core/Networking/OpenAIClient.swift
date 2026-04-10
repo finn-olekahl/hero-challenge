@@ -38,6 +38,7 @@ final class OpenAIClient: Sendable {
         request.httpBody = try encoder.encode(body)
 
         // ── DEBUG REQUEST ──
+        #if DEBUG
         let requestBody = String(data: request.httpBody!, encoding: .utf8) ?? "<binary>"
         print("\n┌──── OpenAI REQUEST ────")
         print("│ URL: \(baseURL.absoluteString)")
@@ -46,6 +47,7 @@ final class OpenAIClient: Sendable {
         print("│ User prompt (\(userPrompt.count) chars): \(String(userPrompt.prefix(500)))...")
         print("│ Full body (\(request.httpBody!.count) bytes)")
         print("└────────────────────────\n")
+        #endif
 
         let (data, response) = try await session.data(for: request)
 
@@ -53,6 +55,7 @@ final class OpenAIClient: Sendable {
         let rawResponse = String(data: data, encoding: .utf8) ?? "<binary>"
 
         // ── DEBUG RESPONSE ──
+        #if DEBUG
         print("\n┌──── OpenAI RESPONSE ────")
         print("│ Status: \(statusCode)")
         print("│ Body (\(data.count) bytes):")
@@ -66,6 +69,7 @@ final class OpenAIClient: Sendable {
             print("│   \(rawResponse.prefix(2000))")
         }
         print("└──────────────────────────\n")
+        #endif
 
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw OpenAIError.httpError(statusCode: http.statusCode, body: rawResponse)
@@ -77,9 +81,11 @@ final class OpenAIClient: Sendable {
             throw OpenAIError.noContent
         }
 
+        #if DEBUG
         print("\n┌──── OpenAI PARSED CONTENT ────")
         print("│ \(content)")
         print("└────────────────────────────────\n")
+        #endif
 
         guard let jsonData = content.data(using: .utf8) else {
             throw OpenAIError.invalidJSON
@@ -88,10 +94,12 @@ final class OpenAIClient: Sendable {
         do {
             return try JSONDecoder().decode(T.self, from: jsonData)
         } catch {
+            #if DEBUG
             print("\n┌──── OpenAI DECODING ERROR ────")
             print("│ \(error)")
             print("│ Content was: \(content)")
             print("└────────────────────────────────\n")
+            #endif
             throw OpenAIError.decodingFailed(content: content, error: error)
         }
     }
