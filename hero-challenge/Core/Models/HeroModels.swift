@@ -165,3 +165,25 @@ struct ProjectStatusStep: Codable, Identifiable, Hashable {
     let is_active: Bool?
     let name: String?
 }
+
+// MARK: - File Upload
+
+struct FileUpload: Codable {
+    let uuid: String?
+    let url: String?
+    let filename: String?
+}
+
+struct FileUploadResponse: Decodable {
+    let upload_image: FileUpload
+}
+
+// MARK: - Logbook / History
+
+struct HistoryEntry: Codable {
+    let id: Int?
+}
+
+struct AddLogbookEntryResponse: Decodable {
+    let add_logbook_entry: HistoryEntry
+}

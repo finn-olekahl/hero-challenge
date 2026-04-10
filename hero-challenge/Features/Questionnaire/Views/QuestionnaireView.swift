@@ -614,7 +614,7 @@ struct QuestionnaireView: View {
             TextField("z.B. nächste Woche, ab Mai, so schnell wie möglich", text: $timeframeText)
                 .textFieldStyle(.roundedBorder)
 
-            Text("Der Zeitraum wird im Angebot als Hinweis vermerkt.")
+            Text("Der Zeitraum wird im Dokument als Hinweis vermerkt.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -723,17 +723,34 @@ struct QuestionnaireView: View {
                 let answers = controller.collectAnswers()
                 onComplete(answers)
             } label: {
-                Text("Angebot erstellen")
+                Text(completionButtonLabel)
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
                     .foregroundStyle(.white)
-                    .background(Color.blue)
+                    .background(intentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .padding(.horizontal, 40)
 
             Spacer()
+        }
+    }
+
+    // MARK: - Intent-Aware Labels
+
+    private var completionButtonLabel: String {
+        switch controller.evaluation.intent {
+        case .offer: return "Angebot erstellen"
+        case .workReport: return "Arbeitsbericht erstellen"
+        case .siteReport: return "Baustellenbericht erstellen"
+        }
+    }
+
+    private var intentColor: Color {
+        switch controller.evaluation.intent {
+        case .offer: return .blue
+        case .workReport, .siteReport: return .teal
         }
     }
 }

@@ -50,38 +50,50 @@ final class QuestionnaireController {
 
     private func buildQuestionnaire() {
         var questions: [QuestionnaireItem] = []
+        let isReport = evaluation.intent == .workReport || evaluation.intent == .siteReport
 
         // Typ 1: Auftragsnachfrage (always first)
+        let projectLabel: String = {
+            switch evaluation.intent {
+            case .offer: return "Welchem Projekt gehört dieses Angebot?"
+            case .workReport: return "Welchem Projekt gehört dieser Arbeitsbericht?"
+            case .siteReport: return "Welchem Projekt gehört dieser Baustellenbericht?"
+            }
+        }()
         let orderQuestion = QuestionnaireItem(
             type: .orderAssignment,
-            question: "Welchem Projekt gehört dieses Angebot?",
+            question: projectLabel,
             context: evaluation.context?.suggestedProjectName ?? evaluation.context?.customerName,
             answer: .project(nil)
         )
         questions.append(orderQuestion)
 
-        // Typ 3: Abrechnungsfragen (for each service)
-        for service in evaluation.services {
-            let billingQuestion = QuestionnaireItem(
-                type: .billing,
-                question: "Abrechnung für: \(service.name)",
-                context: service.description,
-                answer: .billingMethod(.unselected)
-            )
-            questions.append(billingQuestion)
+        // Typ 3: Abrechnungsfragen (only for offers)
+        if !isReport {
+            for service in evaluation.services {
+                let billingQuestion = QuestionnaireItem(
+                    type: .billing,
+                    question: "Abrechnung für: \(service.name)",
+                    context: service.description,
+                    answer: .billingMethod(.unselected)
+                )
+                questions.append(billingQuestion)
+            }
         }
 
-        // Typ 2: Artikelnachfrage (for each material)
-        for material in evaluation.materials {
-            let quantityStr = material.suggestedQuantity.map { String(format: "%.1f %@", $0, material.suggestedUnit ?? "") } ?? ""
-            let articleQuestion = QuestionnaireItem(
-                type: .articleSelection,
-                question: "Produkt wählen: \(material.category)",
-                context: "\(material.description)\(quantityStr.isEmpty ? "" : " — \(quantityStr)")",
-                answer: .article(nil),
-                referenceId: material.id
-            )
-            questions.append(articleQuestion)
+        // Typ 2: Artikelnachfrage (only for offers)
+        if !isReport {
+            for material in evaluation.materials {
+                let quantityStr = material.suggestedQuantity.map { String(format: "%.1f %@", $0, material.suggestedUnit ?? "") } ?? ""
+                let articleQuestion = QuestionnaireItem(
+                    type: .articleSelection,
+                    question: "Produkt wählen: \(material.category)",
+                    context: "\(material.description)\(quantityStr.isEmpty ? "" : " — \(quantityStr)")",
+                    answer: .article(nil),
+                    referenceId: material.id
+                )
+                questions.append(articleQuestion)
+            }
         }
 
         // Typ 5: Mengenbestätigung (for each service with suggested quantity)
@@ -131,14 +143,16 @@ final class QuestionnaireController {
             }
         }
 
-        // Typ 6: Zeitraum (always ask)
-        let timeframeQuestion = QuestionnaireItem(
-            type: .timeframe,
-            question: "Gewünschter Zeitraum für die Durchführung?",
-            context: "z.B. 'nächste Woche', 'ab Mai', 'so schnell wie möglich'",
-            answer: .timeframe("")
-        )
-        questions.append(timeframeQuestion)
+        // Typ 6: Zeitraum (only for offers — reports are always from today)
+        if !isReport {
+            let timeframeQuestion = QuestionnaireItem(
+                type: .timeframe,
+                question: "Gewünschter Zeitraum für die Durchführung?",
+                context: "z.B. 'nächste Woche', 'ab Mai', 'so schnell wie möglich'",
+                answer: .timeframe("")
+            )
+            questions.append(timeframeQuestion)
+        }
 
         // Typ 4: Freitext (for open questions)
         for openQ in evaluation.openQuestions {

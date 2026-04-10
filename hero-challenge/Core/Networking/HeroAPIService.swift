@@ -123,6 +123,94 @@ final class HeroAPIService: Sendable {
         )
         return result.contacts
     }
+
+    // MARK: - File Upload (REST)
+
+    /// Uploads an image via the HERO REST upload endpoint.
+    /// Returns the UUID of the uploaded file.
+    func uploadImage(_ imageData: Data, filename: String) async throws -> String {
+        // The REST upload endpoint is always at /api/external/v9/upload on the same host
+        guard var components = URLComponents(url: client.baseURL, resolvingAgainstBaseURL: false) else {
+            throw GraphQLError.invalidURL
+        }
+        components.path = "/api/external/v9/upload"
+        guard let uploadURL = components.url else {
+            throw GraphQLError.invalidURL
+        }
+
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        // Reuse the token from the GraphQL client
+        request.setValue("Bearer \(client.token)", forHTTPHeaderField: "Authorization")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw GraphQLError.httpError(statusCode: http.statusCode, body: "Upload fehlgeschlagen (HTTP \(http.statusCode))")
+        }
+
+        // Parse the UUID from the response
+        let uploadResponse = try JSONDecoder().decode(RESTUploadResponse.self, from: data)
+        guard let uuid = uploadResponse.uuid else {
+            throw GraphQLError.noData
+        }
+
+        print("📤 [Upload] Image uploaded: \(filename) → UUID: \(uuid)")
+        return uuid
+    }
+
+    /// Links a previously uploaded image to a project via GraphQL.
+    func linkImageToProject(fileUploadUUID: String, projectMatchId: Int) async throws -> FileUpload {
+        let result: FileUploadResponse = try await client.perform(
+            query: Mutations.uploadImage,
+            variables: [
+                "file_upload_uuid": AnyCodable(fileUploadUUID),
+                "target": AnyCodable("project_match"),
+                "target_id": AnyCodable(projectMatchId)
+            ],
+            responseType: FileUploadResponse.self
+        )
+        return result.upload_image
+    }
+
+    // MARK: - Logbook (Bautagebuch)
+
+    /// Adds a logbook entry (Arbeitsbericht / Baustellenbericht) to a project.
+    func addLogbookEntry(
+        projectMatchId: Int,
+        text: String,
+        type: String = "report"
+    ) async throws -> HistoryEntry {
+        let entry: [String: AnyCodable] = [
+            "project_match_id": AnyCodable(projectMatchId),
+            "text": AnyCodable(text),
+            "type": AnyCodable(type)
+        ]
+
+        let result: AddLogbookEntryResponse = try await client.perform(
+            query: Mutations.addLogbookEntry,
+            variables: ["logbook_entry": AnyCodable(entry)],
+            responseType: AddLogbookEntryResponse.self
+        )
+        return result.add_logbook_entry
+    }
+}
+
+// MARK: - REST Upload Response
+
+private struct RESTUploadResponse: Decodable {
+    let uuid: String?
+    let filename: String?
 }
 
 // MARK: - GraphQL Queries
@@ -281,6 +369,32 @@ private enum Mutations {
             customer_document_id
             status_code
             nr
+        }
+    }
+    """
+
+    static let uploadImage = """
+    mutation UploadImage(
+        $file_upload_uuid: String!,
+        $target: LinkTargetEnum,
+        $target_id: Int!
+    ) {
+        upload_image(
+            file_upload_uuid: $file_upload_uuid,
+            target: $target,
+            target_id: $target_id
+        ) {
+            uuid
+            url
+            filename
+        }
+    }
+    """
+
+    static let addLogbookEntry = """
+    mutation AddLogbookEntry($logbook_entry: LogbookEntryInput) {
+        add_logbook_entry(logbook_entry: $logbook_entry) {
+            id
         }
     }
     """

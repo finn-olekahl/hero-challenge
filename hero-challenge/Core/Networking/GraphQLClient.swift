@@ -33,7 +33,7 @@ struct GraphQLResponseError: Decodable {
 final class GraphQLClient: Sendable {
     let baseURL: URL
     private let session: URLSession
-    private let token: String
+    let token: String
 
     init(baseURL: URL, token: String, session: URLSession = .shared) {
         self.baseURL = baseURL

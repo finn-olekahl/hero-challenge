@@ -8,6 +8,8 @@ enum RecordingState {
     case recording
     case paused
     case processing
+    case clarification  // waiting for user to answer pre-scan questions
+    case evaluating     // running full analysis after clarification
     case completed
 }
 
@@ -23,6 +25,7 @@ final class RecordingController {
     private(set) var currentTranscript: String = ""
     private(set) var elapsedTime: TimeInterval = 0
     private(set) var evaluation: AIEvaluation?
+    private(set) var pendingQuestions: [OpenQuestion] = []
     private(set) var errorMessage: String?
 
     let measureController = MeasureController()
@@ -89,7 +92,11 @@ final class RecordingController {
         speechService.onTranscript = { [weak self] text, timestamp in
             guard let self else { return }
             self.currentTranscript = text
-            self.timeline.addTranscript(text, at: timestamp)
+        }
+
+        speechService.onSegmentsFinalized = { [weak self] segments in
+            guard let self else { return }
+            self.timeline.addSegments(segments)
         }
 
         do {
@@ -130,17 +137,56 @@ final class RecordingController {
         state = .processing
 
         do {
-            let result = try await aiService.evaluate(timeline: timeline, photos: capturedPhotos)
-            evaluation = result
-            state = .completed
+            // Phase 1: Pre-scan for clarifying questions
+            let questions = try await aiService.prescan(timeline: timeline, photos: capturedPhotos)
+            if questions.isEmpty {
+                // No questions → proceed directly to full evaluation
+                let result = try await aiService.evaluate(timeline: timeline, photos: capturedPhotos)
+                evaluation = result
+                state = .completed
+            } else {
+                // Has questions → pause for clarification
+                pendingQuestions = questions
+                state = .clarification
+            }
         } catch {
             errorMessage = error.localizedDescription
             state = .processing // stay in processing so retry is possible
         }
     }
 
+    /// Submit clarification answers and run full evaluation.
+    func submitClarifications(_ answers: [(question: String, answer: String)]) async {
+        state = .evaluating
+        do {
+            let result = try await aiService.evaluate(
+                timeline: timeline,
+                photos: capturedPhotos,
+                clarifications: answers
+            )
+            evaluation = result
+            state = .completed
+        } catch {
+            errorMessage = error.localizedDescription
+            state = .evaluating
+        }
+    }
+
+    /// Skip clarification and proceed with evaluation without answers.
+    func skipClarifications() async {
+        state = .evaluating
+        do {
+            let result = try await aiService.evaluate(timeline: timeline, photos: capturedPhotos)
+            evaluation = result
+            state = .completed
+        } catch {
+            errorMessage = error.localizedDescription
+            state = .evaluating
+        }
+    }
+
     func retryEvaluation() async {
-        guard state == .processing else { return }
+        guard state == .processing || state == .evaluating else { return }
         errorMessage = nil
         do {
             let result = try await aiService.evaluate(timeline: timeline, photos: capturedPhotos)
@@ -168,6 +214,7 @@ final class RecordingController {
         currentTranscript = ""
         elapsedTime = 0
         evaluation = nil
+        pendingQuestions = []
         errorMessage = nil
         accumulatedTimeBeforePause = 0
         lastResumeTime = nil

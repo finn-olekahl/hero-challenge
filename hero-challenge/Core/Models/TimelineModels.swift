@@ -1,34 +1,46 @@
 import Foundation
 import UIKit
 
+// MARK: - Transcript Segment
+
+/// A time-windowed chunk of transcript text.
+/// Photos and measurements taken during a segment's time range can be contextually
+/// associated with what was being said.
+struct TranscriptSegment: Identifiable, Codable {
+    let id: UUID
+    let startTime: TimeInterval
+    let endTime: TimeInterval
+    let text: String
+
+    init(startTime: TimeInterval, endTime: TimeInterval, text: String) {
+        self.id = UUID()
+        self.startTime = startTime
+        self.endTime = endTime
+        self.text = text
+    }
+}
+
 // MARK: - Timeline
 
 /// The central data structure that captures everything during a recording session.
-/// Each entry has a type, content, and timestamp relative to the recording start.
+/// Transcript is stored as time-windowed segments so that photos and measurements
+/// can be contextually matched to what was being said at that moment.
 struct RecordingTimeline: Codable {
     var entries: [TimelineEntry] = []
+    var transcriptSegments: [TranscriptSegment] = []
     let startedAt: Date
 
     init(startedAt: Date = Date()) {
         self.startedAt = startedAt
     }
 
-    mutating func addTranscript(_ text: String, at timestamp: TimeInterval) {
-        // Replace the last transcript entry instead of appending duplicates.
-        // Apple Speech sends cumulative partial results — we only need the latest.
-        if let lastIndex = entries.lastIndex(where: { $0.type == .transcript }) {
-            entries[lastIndex] = TimelineEntry(
-                type: .transcript,
-                timestamp: timestamp,
-                content: .transcript(text)
-            )
-        } else {
-            entries.append(TimelineEntry(
-                type: .transcript,
-                timestamp: timestamp,
-                content: .transcript(text)
-            ))
-        }
+    /// The full transcript text reconstructed from all segments.
+    var fullTranscript: String {
+        transcriptSegments.map(\.text).filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    mutating func addSegments(_ segments: [TranscriptSegment]) {
+        transcriptSegments.append(contentsOf: segments)
     }
 
     mutating func addPhoto(id: UUID, at timestamp: TimeInterval) {
@@ -73,20 +85,13 @@ struct TimelineEntry: Identifiable, Codable {
     }
 
     enum EntryType: String, Codable {
-        case transcript
         case photo
         case measurement
     }
 
     enum EntryContent: Codable {
-        case transcript(String)
         case photo(UUID)
         case measurement(ARMeasurement)
-
-        var transcriptText: String? {
-            if case .transcript(let text) = self { return text }
-            return nil
-        }
 
         var photoID: UUID? {
             if case .photo(let id) = self { return id }

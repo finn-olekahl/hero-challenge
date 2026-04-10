@@ -1,9 +1,22 @@
 import Foundation
 
+// MARK: - Document Intent
+
+/// What the user intends to create from the recording.
+enum DocumentIntent: String, Codable {
+    /// An offer/quote for upcoming work
+    case offer = "offer"
+    /// A work report documenting completed work (used materials, hours, results)
+    case workReport = "work_report"
+    /// A construction site report for progress documentation (photos, measurements, status)
+    case siteReport = "site_report"
+}
+
 // MARK: - AI Evaluation Models
 
 /// The structured output from the AI after analyzing the recording timeline.
 struct AIEvaluation: Codable {
+    let intent: DocumentIntent
     let services: [IdentifiedService]
     let materials: [IdentifiedMaterial]
     let context: OrderContext?

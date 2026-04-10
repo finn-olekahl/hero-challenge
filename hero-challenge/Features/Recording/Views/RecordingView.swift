@@ -7,6 +7,7 @@ struct RecordingView: View {
     var onCancel: () -> Void
 
     @State private var showMeasureMode = false
+    @State private var showPhotoFlash = false
 
     var body: some View {
         ZStack {
@@ -22,11 +23,20 @@ struct RecordingView: View {
             Color.black.ignoresSafeArea()
             #endif
 
-            if showMeasureMode {
+            // Only show crosshair when actively measuring
+            if showMeasureMode && controller.measureController.phase == .measuring {
                 CrosshairOverlay(controller: controller.measureController)
             }
 
             recordingOverlay
+
+            // Photo flash overlay
+            if showPhotoFlash {
+                Color.white
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
         }
         .preferredColorScheme(.dark)
         .persistentSystemOverlays(.hidden)
@@ -36,6 +46,12 @@ struct RecordingView: View {
         .onChange(of: controller.state) { _, newState in
             if newState == .processing {
                 onStopRecording()
+            }
+        }
+        .onChange(of: showMeasureMode) { _, isMeasure in
+            if isMeasure && controller.measureController.phase != .measuring {
+                // When switching to measure tab, show type picker
+                controller.measureController.startNewMeasurement()
             }
         }
         .alert("Fehler", isPresented: .init(
@@ -130,32 +146,9 @@ struct RecordingView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 16) {
-            // Live measurement display
+            // Measurement info bar
             if showMeasureMode {
-                if controller.measureController.isNearFirstPoint {
-                    // Snap hint
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("Tippe + um Fläche zu schließen")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.65), in: Capsule())
-                } else if let live = controller.measureController.liveDistanceText {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 10, weight: .heavy))
-                        Text(live)
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.55), in: Capsule())
-                }
+                measureInfoBar
             }
 
             // Main action row
@@ -183,40 +176,8 @@ struct RecordingView: View {
 
                 Spacer()
 
-                // Central button: Photo or Measure point
-                if showMeasureMode {
-                    // Measure add point / close polygon
-                    let isSnap = controller.measureController.isNearFirstPoint
-                    Button { controller.measureController.addPoint() } label: {
-                        ZStack {
-                            Circle()
-                                .stroke(isSnap ? Color.green.opacity(0.8) : Color.white.opacity(0.6), lineWidth: 3)
-                                .frame(width: 80, height: 80)
-                            Circle()
-                                .fill(isSnap ? Color.green.opacity(0.3) : Color.white.opacity(0.12))
-                                .frame(width: 66, height: 66)
-                            Image(systemName: isSnap ? "checkmark" : "plus")
-                                .font(.system(size: 30, weight: .bold))
-                                .foregroundStyle(isSnap ? .green : .white)
-                        }
-                    }
-                    .disabled(!controller.measureController.isSurfaceDetected)
-                    .opacity(controller.measureController.isSurfaceDetected ? 1.0 : 0.4)
-                } else {
-                    // Photo capture
-                    Button {
-                        capturePhoto()
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.5), lineWidth: 3)
-                                .frame(width: 80, height: 80)
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 66, height: 66)
-                        }
-                    }
-                }
+                // Central button: depends on mode + phase
+                centralButton
 
                 Spacer()
 
@@ -240,6 +201,173 @@ struct RecordingView: View {
             modeTabs
         }
         .padding(.bottom, 16)
+    }
+
+    // MARK: - Central Button
+
+    @ViewBuilder
+    private var centralButton: some View {
+        if showMeasureMode {
+            switch controller.measureController.phase {
+            case .choosingType:
+                // Type picker replaces the button
+                measureTypePicker
+
+            case .measuring:
+                // Add point / close polygon
+                let isSnap = controller.measureController.isNearFirstPoint
+                Button { controller.measureController.addPoint() } label: {
+                    ZStack {
+                        Circle()
+                            .stroke(isSnap ? Color.green.opacity(0.8) : Color.white.opacity(0.6), lineWidth: 3)
+                            .frame(width: 80, height: 80)
+                        Circle()
+                            .fill(isSnap ? Color.green.opacity(0.3) : Color.white.opacity(0.12))
+                            .frame(width: 66, height: 66)
+                        Image(systemName: isSnap ? "checkmark" : "plus")
+                            .font(.system(size: 30, weight: .bold))
+                            .foregroundStyle(isSnap ? .green : .white)
+                    }
+                }
+                .disabled(!controller.measureController.isSurfaceDetected)
+                .opacity(controller.measureController.isSurfaceDetected ? 1.0 : 0.4)
+
+            case .completed:
+                // New measurement button
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        controller.measureController.startNewMeasurement()
+                    }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.teal.opacity(0.6), lineWidth: 3)
+                            .frame(width: 80, height: 80)
+                        Circle()
+                            .fill(Color.teal.opacity(0.15))
+                            .frame(width: 66, height: 66)
+                        Image(systemName: "plus.viewfinder")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.teal)
+                    }
+                }
+            }
+        } else {
+            // Photo capture
+            Button {
+                capturePhotoWithFlash()
+            } label: {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.5), lineWidth: 3)
+                        .frame(width: 80, height: 80)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 66, height: 66)
+                }
+            }
+        }
+    }
+
+    // MARK: - Measure Type Picker
+
+    private var measureTypePicker: some View {
+        HStack(spacing: 16) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    controller.measureController.selectMode(.distance)
+                }
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "arrow.left.and.right")
+                        .font(.system(size: 22, weight: .medium))
+                    Text("Strecke")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(width: 80, height: 80)
+                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            }
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    controller.measureController.selectMode(.area)
+                }
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "square.dashed")
+                        .font(.system(size: 22, weight: .medium))
+                    Text("Fläche")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(width: 80, height: 80)
+                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    // MARK: - Measure Info Bar
+
+    @ViewBuilder
+    private var measureInfoBar: some View {
+        let mc = controller.measureController
+        switch mc.phase {
+        case .choosingType:
+            Text("Messtyp wählen")
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.45), in: Capsule())
+
+        case .measuring:
+            if mc.isNearFirstPoint {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Tippe + um Fläche zu schließen")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.green.opacity(0.65), in: Capsule())
+            } else if let live = mc.liveDistanceText {
+                HStack(spacing: 4) {
+                    Image(systemName: mc.measurementMode == .distance ? "arrow.left.and.right" : "square.dashed")
+                        .font(.system(size: 10, weight: .heavy))
+                    Text(live)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.55), in: Capsule())
+            } else if mc.placedPoints.isEmpty {
+                let hint = mc.measurementMode == .distance ? "Startpunkt setzen" : "Ersten Eckpunkt setzen"
+                Text(hint)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.45), in: Capsule())
+            }
+
+        case .completed:
+            if let result = mc.completedResultText {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14, weight: .bold))
+                    Text(result)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.teal.opacity(0.7), in: Capsule())
+            }
+        }
     }
 
     // MARK: - Mode Tabs
@@ -274,8 +402,18 @@ struct RecordingView: View {
 
     // MARK: - Helpers
 
-    private func capturePhoto() {
+    private func capturePhotoWithFlash() {
         #if os(iOS)
+        // Trigger flash
+        withAnimation(.easeIn(duration: 0.05)) {
+            showPhotoFlash = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeOut(duration: 0.25)) {
+                showPhotoFlash = false
+            }
+        }
+        // Capture
         NotificationCenter.default.post(name: .capturePhoto, object: nil)
         #endif
     }

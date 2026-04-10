@@ -5,6 +5,7 @@ import SwiftUI
 struct ProcessingView: View {
     var controller: RecordingController
     var onComplete: (AIEvaluation) -> Void
+    var onNeedsClarification: (() -> Void)?
     var onCancel: () -> Void
 
     @State private var visiblePhases: Int = 0
@@ -16,7 +17,6 @@ struct ProcessingView: View {
         ProcessingPhase(icon: "waveform", label: "Transkript wird verarbeitet"),
         ProcessingPhase(icon: "wrench.and.screwdriver", label: "Leistungen werden erkannt"),
         ProcessingPhase(icon: "shippingbox", label: "Materialien werden zugeordnet"),
-        ProcessingPhase(icon: "questionmark.bubble", label: "Offene Fragen werden formuliert"),
     ]
 
     var body: some View {
@@ -116,6 +116,11 @@ struct ProcessingView: View {
             if newState == .completed, let evaluation = controller.evaluation {
                 // Complete all remaining phases quickly, then navigate
                 completeAllPhasesAndFinish(evaluation: evaluation)
+            } else if newState == .clarification {
+                // Pre-scan found questions — navigate to clarification
+                completeAllPhasesAndNavigate {
+                    onNeedsClarification?()
+                }
             }
         }
         .alert("Fehler", isPresented: .init(
@@ -261,10 +266,16 @@ struct ProcessingView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             withAnimation { completedPhases = max(completedPhases, 2) }
         }
-        // Phases 2 and 3 only complete when the AI actually finishes (handled in onChange)
+        // Phase 2 only completes when the AI actually finishes (handled in onChange)
     }
 
     private func completeAllPhasesAndFinish(evaluation: AIEvaluation) {
+        completeAllPhasesAndNavigate {
+            onComplete(evaluation)
+        }
+    }
+
+    private func completeAllPhasesAndNavigate(action: @escaping () -> Void) {
         // Rapidly complete any remaining phases
         let remaining = phases.count - completedPhases
         for i in 0..<remaining {
@@ -278,7 +289,7 @@ struct ProcessingView: View {
         // Navigate after all phases visually complete
         let navigationDelay = Double(remaining) * 0.3 + 0.5
         DispatchQueue.main.asyncAfter(deadline: .now() + navigationDelay) {
-            onComplete(evaluation)
+            action()
         }
     }
 }

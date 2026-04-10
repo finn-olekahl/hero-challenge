@@ -73,7 +73,15 @@ enum EnvConfig {
     }
 
     static var heroAPIURL: String {
-        values["HERO_API_URL"] ?? "https://login.hero-software.de/api/external/v9/graphql"
+        let raw = values["HERO_API_URL"] ?? "https://login.hero-software.de/api/external/v9/graphql"
+        // Always normalise to v9 – older env files may reference v7 which lacks newer mutations
+        guard var components = URLComponents(string: raw) else { return raw }
+        components.path = components.path.replacingOccurrences(
+            of: #"/api/external/v\d+/"#,
+            with: "/api/external/v9/",
+            options: .regularExpression
+        )
+        return components.url?.absoluteString ?? raw
     }
 
     static var isConfigured: Bool {

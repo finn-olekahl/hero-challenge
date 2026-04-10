@@ -5,10 +5,25 @@ import Observation
 import UIKit
 #endif
 
+// MARK: - Measurement Mode
+
+/// Whether the user is measuring a distance (2 points) or an area (polygon).
+enum MeasurementMode: String {
+    case distance
+    case area
+}
+
+/// Phase of the current measurement within Messen mode.
+enum MeasurePhase {
+    /// User needs to pick distance or area.
+    case choosingType
+    /// Actively placing points.
+    case measuring
+    /// Current measurement finished — user can start another.
+    case completed
+}
+
 /// Controller managing AR measurement state during a recording session.
-/// Unified flow: place points to create connected line segments.
-/// When the crosshair is near the first point (≥3 points), tapping closes the polygon
-/// and automatically calculates the enclosed area — like Apple's Measure app.
 @Observable
 final class MeasureController {
 
@@ -25,12 +40,18 @@ final class MeasureController {
 
     // MARK: - State
 
+    private(set) var measurementMode: MeasurementMode?
+    private(set) var phase: MeasurePhase = .choosingType
+
     /// Committed line segments with distance labels.
     private(set) var segments: [MeasurementSegment] = []
     /// The current chain of placed points (first point → live line to crosshair).
     private(set) var placedPoints: [MeasurementPoint] = []
     /// Finalized area polygons.
     private(set) var finalizedAreas: [AreaPolygon] = []
+
+    /// Result text shown after a measurement completes.
+    private(set) var completedResultText: String?
 
     var crosshairWorldPosition: SCNVector3?
     var isSurfaceDetected: Bool = false
@@ -44,7 +65,8 @@ final class MeasureController {
 
     /// Whether the crosshair is close enough to the first point to close a polygon.
     var isNearFirstPoint: Bool {
-        guard placedPoints.count >= 3,
+        guard measurementMode == .area,
+              placedPoints.count >= 3,
               let crosshair = crosshairWorldPosition,
               let first = placedPoints.first else { return false }
         let dist = simd_distance(first.position, SIMD3<Float>(crosshair.x, crosshair.y, crosshair.z))
@@ -73,18 +95,42 @@ final class MeasureController {
     /// that should be revoked if the chain becomes a closed polygon.
     private var pendingLineMeasurementIDs: [UUID] = []
 
+    // MARK: - Mode Selection
+
+    /// Called when user picks distance or area from the type picker.
+    func selectMode(_ mode: MeasurementMode) {
+        measurementMode = mode
+        phase = .measuring
+        completedResultText = nil
+        instructionText = mode == .distance
+            ? "Startpunkt setzen."
+            : "Ersten Eckpunkt setzen."
+    }
+
+    /// Start another measurement of the same or different type.
+    func startNewMeasurement() {
+        phase = .choosingType
+        measurementMode = nil
+        completedResultText = nil
+        placedPoints.removeAll()
+        pendingLineMeasurementIDs.removeAll()
+        instructionText = "Messtyp wählen."
+    }
+
     // MARK: - Actions
 
     func addPoint() {
-        guard isSurfaceDetected, let position = crosshairWorldPosition else { return }
+        guard phase == .measuring,
+              isSurfaceDetected,
+              let position = crosshairWorldPosition else { return }
 
         #if os(iOS)
         hapticGenerator.impactOccurred()
         hapticGenerator.prepare()
         #endif
 
-        // If near the first point and enough points to form an area → close polygon
-        if isNearFirstPoint {
+        // Area mode: if near the first point and enough points → close polygon
+        if measurementMode == .area && isNearFirstPoint {
             closePolygon()
             return
         }
@@ -97,6 +143,26 @@ final class MeasureController {
             segments.append(segment)
             instructionText = segment.formattedDistance
 
+            // Distance mode: 2 points → done
+            if measurementMode == .distance {
+                let measurement = ARMeasurement(
+                    type: .length,
+                    value: Double(segment.distance),
+                    unit: "m"
+                )
+                onMeasurementCompleted?(measurement)
+                placedPoints.append(point)
+                completedResultText = segment.formattedDistance
+                phase = .completed
+
+                #if os(iOS)
+                let heavy = UIImpactFeedbackGenerator(style: .medium)
+                heavy.impactOccurred()
+                #endif
+                return
+            }
+
+            // Area mode: intermediate segment
             let measurement = ARMeasurement(
                 type: .length,
                 value: Double(segment.distance),
@@ -105,7 +171,9 @@ final class MeasureController {
             onMeasurementCompleted?(measurement)
             pendingLineMeasurementIDs.append(measurement.id)
         } else {
-            instructionText = "Nächsten Punkt setzen."
+            instructionText = measurementMode == .distance
+                ? "Endpunkt setzen."
+                : "Nächsten Eckpunkt setzen."
         }
 
         placedPoints.append(point)
@@ -136,7 +204,10 @@ final class MeasureController {
         )
         onMeasurementCompleted?(measurement)
 
-        instructionText = String(format: "Fläche: %.2f m²", area)
+        let resultText = String(format: "Fläche: %.2f m²", area)
+        instructionText = resultText
+        completedResultText = resultText
+        phase = .completed
         placedPoints.removeAll()
 
         #if os(iOS)
@@ -181,6 +252,10 @@ final class MeasureController {
         segments.removeAll()
         placedPoints.removeAll()
         finalizedAreas.removeAll()
+        pendingLineMeasurementIDs.removeAll()
+        measurementMode = nil
+        phase = .choosingType
+        completedResultText = nil
         instructionText = "iPhone bewegen um Fläche zu erkennen."
     }
 

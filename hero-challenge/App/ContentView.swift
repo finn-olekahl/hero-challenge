@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var evaluation: AIEvaluation?
     @State private var questionnaireController: QuestionnaireController?
     @State private var offerController: OfferController?
+    @State private var reportController: ReportController?
 
     // API service (configured once)
     private let apiService: HeroAPIService = {
@@ -51,6 +52,53 @@ struct ContentView: View {
                             appState = .questionnaire
                         }
                     },
+                    onNeedsClarification: {
+                        withAnimation {
+                            appState = .clarification
+                        }
+                    },
+                    onCancel: {
+                        recordingController.reset()
+                        withAnimation {
+                            appState = .home
+                        }
+                    }
+                )
+
+            case .clarification:
+                ClarificationView(
+                    controller: recordingController,
+                    onComplete: {
+                        // After clarification, show evaluating spinner then questionnaire
+                        withAnimation {
+                            appState = .evaluating
+                        }
+                    },
+                    onCancel: {
+                        recordingController.reset()
+                        withAnimation {
+                            appState = .home
+                        }
+                    }
+                )
+
+            case .evaluating:
+                ProcessingView(
+                    controller: recordingController,
+                    onComplete: { eval in
+                        self.evaluation = eval
+                        let qc = QuestionnaireController(evaluation: eval, apiService: apiService, transcript: self.recordingController.currentTranscript)
+                        self.questionnaireController = qc
+                        withAnimation {
+                            appState = .questionnaire
+                        }
+                    },
+                    onNeedsClarification: {
+                        // Should not happen in evaluating phase, but handle gracefully
+                        withAnimation {
+                            appState = .clarification
+                        }
+                    },
                     onCancel: {
                         recordingController.reset()
                         withAnimation {
@@ -65,19 +113,49 @@ struct ContentView: View {
                         controller: qc,
                         onComplete: { answers in
                             if let eval = evaluation {
-                                let oc = OfferController(
-                                    evaluation: eval,
-                                    answers: answers,
-                                    apiService: apiService,
-                                    transcript: self.recordingController.currentTranscript
-                                )
-                                self.offerController = oc
-                                withAnimation {
-                                    appState = .offer
+                                let intent = eval.intent
+                                switch intent {
+                                case .offer:
+                                    let oc = OfferController(
+                                        evaluation: eval,
+                                        answers: answers,
+                                        apiService: apiService,
+                                        transcript: self.recordingController.currentTranscript
+                                    )
+                                    self.offerController = oc
+                                    withAnimation {
+                                        appState = .offer
+                                    }
+                                case .workReport, .siteReport:
+                                    let rc = ReportController(
+                                        intent: intent,
+                                        evaluation: eval,
+                                        answers: answers,
+                                        photos: self.recordingController.capturedPhotos,
+                                        apiService: apiService,
+                                        transcript: self.recordingController.currentTranscript
+                                    )
+                                    self.reportController = rc
+                                    withAnimation {
+                                        appState = .report
+                                    }
                                 }
                             }
                         },
                         onCancel: {
+                            withAnimation {
+                                appState = .home
+                            }
+                        }
+                    )
+                }
+
+            case .report:
+                if let rc = reportController {
+                    ReportView(
+                        controller: rc,
+                        onDone: {
+                            resetAll()
                             withAnimation {
                                 appState = .home
                             }
@@ -117,7 +195,7 @@ struct ContentView: View {
                     Text("AI-Modus")
                         .font(.largeTitle.weight(.bold))
 
-                    Text("Sprechen, fotografieren, messen –\ndie KI erstellt das Angebot.")
+                    Text("Sprechen, fotografieren, messen –\ndie KI erstellt Angebot oder Bericht.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -185,6 +263,7 @@ struct ContentView: View {
         evaluation = nil
         questionnaireController = nil
         offerController = nil
+        reportController = nil
     }
 }
 
@@ -192,6 +271,9 @@ enum AppFlowState {
     case home
     case recording
     case processing
+    case clarification
+    case evaluating
     case questionnaire
     case offer
+    case report
 }
