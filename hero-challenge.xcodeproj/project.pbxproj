@@ -6,18 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */; };
-		B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64CE0722F87DC4E009FE241 /* ContentView.swift */; };
-		B64CE0752F87DC4F009FE241 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B64CE0742F87DC4F009FE241 /* Assets.xcassets */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		B64CE06D2F87DC4E009FE241 /* hero-challenge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "hero-challenge.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hero_challengeApp.swift; sourceTree = "<group>"; };
-		B64CE0722F87DC4E009FE241 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B64CE0742F87DC4F009FE241 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B64CE0C02F88A001009FE241 /* hero-challenge */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "hero-challenge";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B64CE06A2F87DC4E009FE241 /* Frameworks */ = {
@@ -33,11 +32,7 @@
 		B64CE0642F87DC4E009FE241 = {
 			isa = PBXGroup;
 			children = (
-				B64CE07B2F87DC6D009FE241 /* App */,
-				B64CE07C2F87DC72009FE241 /* Views */,
-				B64CE07E2F87DC7E009FE241 /* ViewModels */,
-				B64CE07D2F87DC76009FE241 /* Models */,
-				B64CE07F2F87DC84009FE241 /* Resources */,
+				B64CE0C02F88A001009FE241 /* hero-challenge */,
 				B64CE06E2F87DC4E009FE241 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,44 +45,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		B64CE07B2F87DC6D009FE241 /* App */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0702F87DC4E009FE241 /* hero_challengeApp.swift */,
-			);
-			path = App;
-			sourceTree = "<group>";
-		};
-		B64CE07C2F87DC72009FE241 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0722F87DC4E009FE241 /* ContentView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		B64CE07D2F87DC76009FE241 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		B64CE07E2F87DC7E009FE241 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		B64CE07F2F87DC84009FE241 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				B64CE0742F87DC4F009FE241 /* Assets.xcassets */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -98,10 +55,14 @@
 				B64CE0692F87DC4E009FE241 /* Sources */,
 				B64CE06A2F87DC4E009FE241 /* Frameworks */,
 				B64CE06B2F87DC4E009FE241 /* Resources */,
+				B6ENV0012F88B001009FE241 /* Copy .env to Bundle */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B64CE0C02F88A001009FE241 /* hero-challenge */,
 			);
 			name = "hero-challenge";
 			packageProductDependencies = (
@@ -149,19 +110,35 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B64CE0752F87DC4F009FE241 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B6ENV0012F88B001009FE241 /* Copy .env to Bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.env",
+			);
+			name = "Copy .env to Bundle";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(PRODUCT_NAME).app/.env",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -f \"${SRCROOT}/.env\" ]; then\n  cp \"${SRCROOT}/.env\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/.env\"\nelse\n  echo \"warning: .env file not found at ${SRCROOT}/.env\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B64CE0692F87DC4E009FE241 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B64CE0732F87DC4E009FE241 /* ContentView.swift in Sources */,
-				B64CE0712F87DC4E009FE241 /* hero_challengeApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -292,17 +269,21 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JG7CFYYV5B;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Kamerazugriff wird benötigt für AR-Messungen und Fotodokumentation.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofonzugriff wird für die Sprachaufnahme und Transkription benötigt.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spracherkennung wird für die automatische Transkription während der Aufnahme benötigt.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -336,17 +317,21 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JG7CFYYV5B;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Kamerazugriff wird benötigt für AR-Messungen und Fotodokumentation.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofonzugriff wird für die Sprachaufnahme und Transkription benötigt.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spracherkennung wird für die automatische Transkription während der Aufnahme benötigt.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

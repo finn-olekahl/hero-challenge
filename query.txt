@@ -1,0 +1,468 @@
+absence_balance
+year: Int
+partner_id: Int
+: AbsencesBalances
+Fetch the absence balance for given year
+
+absence_budget
+start: Date!
+end: Date!
+type: Employees_AbsenceTypeEnum!
+start_budget: Employees_AbsenceBudgetTypeEnum
+end_budget: Employees_AbsenceBudgetTypeEnum
+: Employees_Absence
+absences
+orderBy: String
+first: Int
+last: Int
+offset: Int
+start: Date
+end: Date
+ids: [Int]
+show_all_partners: Boolean
+partner_ids: [Int]
+statuses: [Employees_AbsenceStatusEnum]
+: [Employees_Absence]
+Get a list of filtered absences for the current user
+
+aggregate_webhooks
+providers: [String]
+is_active: Boolean!
+: Int
+Aggregate webhooks
+
+bookaccounts
+orderBy: String
+first: Int
+last: Int
+offset: Int
+ids: [Int]
+name: String
+type: String
+: [Accounting_BookAccount]
+Query bookaccounts
+
+calendar_event_categories
+show_deleted: Boolean
+: [CalendarEventCategories]
+calendar_events
+start: DateTime
+end: DateTime
+project_match_id: Int
+partner_ids: [Int]
+resource_ids: [Int]
+show_deleted: Boolean
+ids: [Int]
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [CalendarEvent]
+calendar_imports: [CalendarImport]
+company: Company
+Returns the current company
+
+configuration: Configuration
+Returns the global platform configuration
+
+contacts
+orderBy: String
+first: Int
+last: Int
+offset: Int
+ids: [Int]
+category: CustomerCategoryEnum
+search: String
+show_deleted: Boolean
+: [Customer]
+Find contacts
+
+costcenters
+orderBy: String
+first: Int
+last: Int
+offset: Int
+ids: [Int]
+number: String
+skr_number: Int
+: [Accounting_CostCenter]
+Query the cost centers
+
+countries: [Country]
+Returns all countries
+
+custom_field_records
+orderBy: String
+first: Int
+last: Int
+offset: Int
+relation: CustomFields_SchemaRelationTypeEnum!
+schemaIds: [String]
+relationIds: [Int]
+: [CustomFields_Record]
+Retrieve all custom field records a company and relation type.
+
+custom_fields_schemas
+orderBy: String
+first: Int
+last: Int
+offset: Int
+schemaIds: [String]
+: [CustomFields_Schema]
+Retrieve custom field schemas for company.
+
+customer_document_types: [CustomerDocumentType] 
+customer_documents
+ids: [Int]
+file_upload_folder_ids: [Int]
+document_type_ids: [Int]
+project_match_ids: [Int]
+status_codes: [Int]
+invoice_style: InvoiceStyle
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [CustomerDocument]
+document_types
+show_deleted: Boolean
+user_write_allowed: Boolean
+base_types: [String]
+context: String
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Documents_DocumentType]
+echo
+message: String
+: String
+For testing. Echoes the given string
+
+email_template
+email_template_id: Int
+: EmailTemplate
+Find single email template
+
+EmailTemplate_EmailTemplates
+filters: EmailTemplate_EmailTemplateFiltersInput
+before: String
+after: String
+first: Int
+offset: Int
+sortings: [EmailTemplate_EmailTemplateSortingInput!]
+: EmailTemplate_EmailTemplateConnection
+Returns a list of email templates for the current partner
+
+field_service_checklist_template
+id: Int
+: FieldService_ChecklistTemplate 
+field_service_checklist_templates
+ids: [Int]
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [FieldService_ChecklistTemplate]
+field_service_job
+id: Int
+: FieldService_Job
+field_service_jobs
+project_match_id: Int
+partner_id: Int
+start: DateTime
+end: DateTime
+status: [Int]
+partners: [Int]
+contact_id: Int
+search: String
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [FieldService_Job]
+Note: partner_id argument is deprecated.
+
+field_service_object
+id: Int
+: FieldService_ServiceObject
+file_upload_folders
+orderBy: String
+first: Int
+last: Int
+offset: Int
+show_deleted: Boolean
+: [FileUploadFolder]
+Find file upload folders
+
+file_uploads
+orderBy: String
+first: Int
+last: Int
+offset: Int
+uuids: [String!]
+: [FileUpload]
+Get file uploads by UUID
+
+global_search
+orderBy: String
+first: Int
+last: Int
+offset: Int
+category: SearchCategoryEnum
+term: String
+: [SearchResult]
+Search for project_matches, jobs, contacts, documents, partners
+
+histories
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [History]
+Find logbook history entries
+
+holidays
+start: Date
+end: Date
+state_ids: [Int]
+: [Holiday]
+job_checklists
+job_id: Int
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [FieldService_Checklist]
+new_supply_product_version: [Documents_SupplyProductVersion]
+Create a new supply product version template
+
+new_supply_service: [Documents_SupplyService]
+Create a new supply service template
+
+notifications
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Notification]
+Find notifications
+
+partner_birthdays
+nextDays: Int
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Employees_PartnerBirthday]
+Returns the list of the next upcoming birthdays
+
+project_histories
+orderBy: String
+first: Int
+last: Int
+offset: Int
+project_match_id: Int
+user_ids: [Int]
+show_system_histories: Boolean
+search_term: String
+: [History]
+Find logbook history entries for a given project
+
+project_leads
+ids: [Int]
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Leads_ProjectLead] 
+project_match
+project_match_id: Int
+: ProjectMatch
+Find single project
+
+project_match_checklists
+orderBy: String
+first: Int
+last: Int
+offset: Int
+project_match_id: Int
+: [FieldService_Checklist]
+Find checklists for given project
+
+project_matches
+orderBy: String
+first: Int
+last: Int
+offset: Int
+type: String
+ids: [Int]
+customer_id: Int
+search: String
+statuses: [Int]
+step_ids: [Int]
+assigned_user_ids: [Int]
+relative_id: String
+type_ids: [Int]
+measure_ids: [Int]
+overdue: Boolean
+: [ProjectMatch]
+Find projects
+
+project_types
+orderBy: String
+first: Int
+last: Int
+offset: Int
+ids: [Int]
+is_active: Boolean
+: [ProjectType]
+Get all active project pipeline types
+
+Receipt_Receipts
+filters: Receipt_ReceiptFiltersInput
+before: String
+after: String
+first: Int
+offset: Int
+sortings: [Receipt_ReceiptSortingInput!]
+: Receipt_ReceiptConnection
+Returns a paginated list of receipts.
+
+receipts
+orderBy: String
+first: Int
+last: Int
+offset: Int
+ids: [Int]
+status_code: Int
+number: String
+tax_id: Int
+customer_id: Int
+: [Accounting_Receipt]
+Query to get receipts
+
+resources
+show_deleted: Boolean
+: [CompanyResource]
+Get the company resources
+
+search_calendar_events
+orderBy: String
+first: Int
+last: Int
+offset: Int
+search: String
+startDate: String
+showDeleted: Boolean
+: [CalendarEvent]
+Search calendar events by event, customer or project name
+
+supply_product_versions
+orderBy: String
+first: Int
+last: Int
+offset: Int
+product_ids: [String]
+search: String
+: [Documents_SupplyProductVersion]
+Query to get supply product versions
+
+supply_products
+orderBy: String
+first: Int
+last: Int
+offset: Int
+search: String
+: [Documents_SupplyProduct] 
+Query to get supply products (deprecated, use supply_product_versions)
+
+supply_services
+orderBy: String
+first: Int
+last: Int
+offset: Int
+service_ids: [Int]
+search: String
+: [Documents_SupplyService]
+Query to get supply services
+
+supply_texts
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Documents_SupplyText]
+tasks
+orderBy: String
+first: Int
+last: Int
+offset: Int
+project_match_id: Int
+start: DateTime
+end: DateTime
+is_done: Boolean
+show_deleted: Boolean
+ids: [Int]
+target_user_ids: [Int]
+author_user_ids: [Int]
+: [Task]
+Find tasks
+
+tracking_time_balance
+start: Date
+end: Date
+partner_id: Int
+: Employees_TimeTrackingBalance
+tracking_times
+orderBy: String
+first: Int
+last: Int
+offset: Int
+project_match_id: Int
+start: Date
+end: Date
+ids: [Int]
+show_all_partners: Boolean
+partner_ids: [Int]
+statuses: [Employees_TrackingTimeStatusEnum]
+tracking_times_category_ids: [Int]
+: [Employees_TrackingTime]
+Returns a list of timetracking entries for the current user
+
+tracking_times_categories
+is_working_time: Boolean
+is_active: Boolean
+is_protected: Boolean
+orderBy: String
+first: Int
+last: Int
+offset: Int
+: [Employees_TrackingTimesCategory]
+Find categories for time tracking entries
+
+upload_image_categories
+orderBy: String
+first: Int
+last: Int
+offset: Int
+project_match_id: Int
+target: LinkTargetEnum
+target_id: Int
+: [String]
+Find image categories for file uploads
+
+user: User
+Returns the current user
+
+webhook_event_types: [Webhooks_WebhookEventType]
+List available webhook event types
+
+webhooks
+orderBy: String
+first: Int
+last: Int
+offset: Int
+providers: [String]
+ids: [Int]
+: [Webhooks_Webhook]
