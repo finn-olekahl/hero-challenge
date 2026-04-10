@@ -214,41 +214,19 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Projekte...")
             }
 
+            let selectedProjectID: Int? = {
+                if case .project(let selected) = controller.currentItem?.answer { return selected?.id }
+                return nil
+            }()
+
             ForEach(sortedProjects) { project in
-                Button {
-                    controller.selectProject(project)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(project.displayName)
-                                .font(.body.weight(.medium))
-                            if let customer = project.customer {
-                                Text(customer.displayName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if case .project(let selected) = controller.currentItem?.answer,
-                           selected?.id == project.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                    .padding()
-                    .background {
-                        if case .project(let selected) = controller.currentItem?.answer,
-                           selected?.id == project.id {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue.opacity(0.08))
-                        } else {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.secondarySystemBackground))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
+                SelectableRow(
+                    title: project.displayName,
+                    subtitle: project.customer?.displayName,
+                    itemID: project.id,
+                    selectedID: selectedProjectID,
+                    action: { controller.selectProject(project) }
+                )
             }
         }
     }
@@ -288,32 +266,19 @@ struct QuestionnaireView: View {
                     Text("Leistungstyp auswählen")
                         .font(.subheadline.weight(.medium))
 
+                    let selectedServiceID: Int? = {
+                        if case .billingMethod(.serviceType(let s)) = controller.currentItem?.answer { return s?.id }
+                        return nil
+                    }()
+
                     ForEach(controller.services) { service in
-                        Button {
-                            controller.setBillingMethod(.serviceType(service))
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(service.displayName)
-                                        .font(.body)
-                                    if let price = service.net_price_per_unit {
-                                        Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                if case .billingMethod(.serviceType(let selected)) = controller.currentItem?.answer,
-                                   selected?.id == service.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
+                        SelectableRow(
+                            title: service.displayName,
+                            detail: service.net_price_per_unit.map { String(format: "%.2f € / %@", $0, service.unit_type ?? "Stk") },
+                            itemID: service.id,
+                            selectedID: selectedServiceID,
+                            action: { controller.setBillingMethod(.serviceType(service)) }
+                        )
                     }
                 }
             }
@@ -347,41 +312,19 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Produkte...")
             }
 
+            let selectedProductID: String? = {
+                if case .article(let selected) = controller.currentItem?.answer { return selected?.id }
+                return nil
+            }()
+
             ForEach(sortedProducts) { product in
-                Button {
-                    controller.selectArticle(product)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(product.displayName)
-                                .font(.body)
-                            if let price = product.price_net {
-                                Text(String(format: "%.2f € / %@", price, product.unit ?? "Stk"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if case .article(let selected) = controller.currentItem?.answer,
-                           selected?.id == product.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                    .padding()
-                    .background {
-                        if case .article(let selected) = controller.currentItem?.answer,
-                           selected?.id == product.id {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue.opacity(0.08))
-                        } else {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.secondarySystemBackground))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
+                SelectableRow(
+                    title: product.displayName,
+                    detail: product.price_net.map { String(format: "%.2f € / %@", $0, product.unit ?? "Stk") },
+                    itemID: product.id,
+                    selectedID: selectedProductID,
+                    action: { controller.selectArticle(product) }
+                )
             }
         }
     }
@@ -465,26 +408,25 @@ struct QuestionnaireView: View {
 
     // MARK: - Sorted Lists (auto-selected on top)
 
-    private var sortedProjects: [ProjectMatch] {
-        guard case .project(let selected) = controller.currentItem?.answer,
-              let selected else { return controller.projects }
-        var sorted = controller.projects
-        if let idx = sorted.firstIndex(where: { $0.id == selected.id }), idx > 0 {
+    /// Sorts a list placing the selected item first. Used for project and product lists.
+    private func sortedWithSelectedFirst<T: Identifiable>(_ items: [T], selectedID: T.ID?) -> [T] where T.ID: Equatable {
+        guard let selectedID else { return items }
+        var sorted = items
+        if let idx = sorted.firstIndex(where: { $0.id == selectedID }), idx > 0 {
             let item = sorted.remove(at: idx)
             sorted.insert(item, at: 0)
         }
         return sorted
     }
 
+    private var sortedProjects: [ProjectMatch] {
+        guard case .project(let selected) = controller.currentItem?.answer else { return controller.projects }
+        return sortedWithSelectedFirst(controller.projects, selectedID: selected?.id)
+    }
+
     private var sortedProducts: [SupplyProductVersion] {
-        guard case .article(let selected) = controller.currentItem?.answer,
-              let selected else { return controller.products }
-        var sorted = controller.products
-        if let idx = sorted.firstIndex(where: { $0.id == selected.id }), idx > 0 {
-            let item = sorted.remove(at: idx)
-            sorted.insert(item, at: 0)
-        }
-        return sorted
+        guard case .article(let selected) = controller.currentItem?.answer else { return controller.products }
+        return sortedWithSelectedFirst(controller.products, selectedID: selected?.id)
     }
 
     // MARK: - Navigation Buttons
