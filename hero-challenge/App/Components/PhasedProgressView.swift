@@ -209,13 +209,15 @@ struct PhasedProgressView: View {
             }
         }
 
-        // Auto-complete the first two phases on a schedule
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            withAnimation { completedPhases = max(completedPhases, 1) }
-        }
-        if phases.count > 2 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-                withAnimation { completedPhases = max(completedPhases, 2) }
+        // Auto-complete early phases on a schedule to give visual feedback
+        // while the actual work proceeds. Each phase auto-completes 1.5s after
+        // it first appears, up to (phases.count - 2) to leave the final phases
+        // for the real completion signal.
+        let maxAutoComplete = max(0, phases.count - 2)
+        for i in 0..<maxAutoComplete {
+            let delay = 1.8 + Double(i) * 1.7
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation { completedPhases = max(completedPhases, i + 1) }
             }
         }
     }

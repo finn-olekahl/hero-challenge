@@ -2,6 +2,8 @@ import SwiftUI
 
 /// A reusable selectable list row used in the questionnaire for project, product, and service selection.
 /// Shows a title, optional subtitle, optional trailing detail, and a checkmark when selected.
+///
+/// - Note: `subtitle` and `detail` are hidden when `nil` or empty.
 struct SelectableRow<ID: Equatable>: View {
     let title: String
     var subtitle: String? = nil
