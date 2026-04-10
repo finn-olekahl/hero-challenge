@@ -19,6 +19,7 @@ struct QuestionnaireView: View {
                     completionView
                 } else if let item = controller.currentItem {
                     questionContent(item)
+                        .id(controller.currentIndex)
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,6 +47,8 @@ struct QuestionnaireView: View {
         billingIsHourly = true
         hourCount = ""
         productSearchText = ""
+        searchTask?.cancel()
+        searchTask = nil
         freeTextAnswer = ""
         quantityText = ""
         timeframeText = ""
@@ -220,24 +223,26 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Projekte...")
             }
 
-            ForEach(sortedProjects) { project in
-                let isSelected = {
-                    if case .project(let selected) = controller.currentItem?.answer {
-                        return selected?.id == project.id
-                    }
-                    return false
-                }()
+            LazyVStack(spacing: 8) {
+                ForEach(sortedProjects) { project in
+                    let isSelected = {
+                        if case .project(let selected) = controller.currentItem?.answer {
+                            return selected?.id == project.id
+                        }
+                        return false
+                    }()
 
-                SelectableRow(isSelected: isSelected, action: {
-                    controller.selectProject(project)
-                }) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(project.displayName)
-                            .font(.body.weight(.medium))
-                        if let customer = project.customer {
-                            Text(customer.displayName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    SelectableRow(isSelected: isSelected, action: {
+                        controller.selectProject(project)
+                    }) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(project.displayName)
+                                .font(.body.weight(.medium))
+                            if let customer = project.customer {
+                                Text(customer.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -280,24 +285,26 @@ struct QuestionnaireView: View {
                     Text("Leistungstyp auswählen")
                         .font(.subheadline.weight(.medium))
 
-                    ForEach(controller.services) { service in
-                        let isSelected = {
-                            if case .billingMethod(.serviceType(let selected)) = controller.currentItem?.answer {
-                                return selected?.id == service.id
-                            }
-                            return false
-                        }()
+                    LazyVStack(spacing: 8) {
+                        ForEach(controller.services) { service in
+                            let isSelected = {
+                                if case .billingMethod(.serviceType(let selected)) = controller.currentItem?.answer {
+                                    return selected?.id == service.id
+                                }
+                                return false
+                            }()
 
-                        SelectableRow(isSelected: isSelected, action: {
-                            controller.setBillingMethod(.serviceType(service))
-                        }) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(service.displayName)
-                                    .font(.body)
-                                if let price = service.net_price_per_unit {
-                                    Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                            SelectableRow(isSelected: isSelected, action: {
+                                controller.setBillingMethod(.serviceType(service))
+                            }) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(service.displayName)
+                                        .font(.body)
+                                    if let price = service.net_price_per_unit {
+                                        Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
@@ -338,24 +345,26 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Produkte...")
             }
 
-            ForEach(sortedProducts) { product in
-                let isSelected = {
-                    if case .article(let selected) = controller.currentItem?.answer {
-                        return selected?.id == product.id
-                    }
-                    return false
-                }()
+            LazyVStack(spacing: 8) {
+                ForEach(sortedProducts) { product in
+                    let isSelected = {
+                        if case .article(let selected) = controller.currentItem?.answer {
+                            return selected?.id == product.id
+                        }
+                        return false
+                    }()
 
-                SelectableRow(isSelected: isSelected, action: {
-                    controller.selectArticle(product)
-                }) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(product.displayName)
-                            .font(.body)
-                        if let price = product.price_net {
-                            Text(String(format: "%.2f € / %@", price, product.unit ?? "Stk"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    SelectableRow(isSelected: isSelected, action: {
+                        controller.selectArticle(product)
+                    }) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(product.displayName)
+                                .font(.body)
+                            if let price = product.price_net {
+                                Text(String(format: "%.2f € / %@", price, product.unit ?? "Stk"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }

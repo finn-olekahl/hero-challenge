@@ -99,6 +99,7 @@ struct ContentView: View {
                 }
             }
         }
+        .id(appState)
     }
 
     // MARK: - Home View
@@ -188,7 +189,7 @@ struct ContentView: View {
     }
 }
 
-enum AppFlowState {
+enum AppFlowState: Hashable {
     case home
     case recording
     case processing
