@@ -77,182 +77,31 @@ struct QuestionnaireView: View {
 
     // MARK: - Auto-Matching Animated View
 
-    @State private var matchPulse: Bool = false
-    @State private var matchVisiblePhases: Int = 0
     @State private var matchCompletedPhases: Int = 0
-    @State private var matchShowRecap: Bool = false
 
     private let matchPhases = [
-        (icon: "folder", label: "Projekt wird zugeordnet"),
-        (icon: "shippingbox", label: "Produkte werden abgeglichen"),
+        ProgressPhase(icon: "folder", label: "Projekt wird zugeordnet"),
+        ProgressPhase(icon: "shippingbox", label: "Produkte werden abgeglichen"),
     ]
 
     private var autoMatchingView: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(.systemBackground), Color.teal.opacity(0.06)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                Spacer().frame(height: 40)
-
-                // Pulsing icon
-                ZStack {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle()
-                            .stroke(Color.teal.opacity(0.15 - Double(i) * 0.04), lineWidth: 1.5)
-                            .frame(width: CGFloat(80 + i * 28), height: CGFloat(80 + i * 28))
-                            .scaleEffect(matchPulse ? 1.08 : 0.95)
-                            .animation(
-                                .easeInOut(duration: 1.8)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(i) * 0.3),
-                                value: matchPulse
-                            )
-                    }
-
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 34, weight: .medium))
-                        .foregroundStyle(.teal)
-                        .frame(width: 72, height: 72)
-                        .background(Color.teal.opacity(0.1), in: Circle())
-                }
-                .padding(.bottom, 28)
-
-                Text("KI gleicht Vorschläge ab")
-                    .font(.title2.weight(.bold))
-                    .padding(.bottom, 6)
-
-                Text("Daten werden mit deinem Account abgeglichen")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 32)
-
-                // Recap card
-                if matchShowRecap {
-                    matchRecapCard
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 28)
-                }
-
-                // Phases
-                VStack(spacing: 0) {
-                    ForEach(Array(matchPhases.enumerated()), id: \.offset) { index, phase in
-                        if index < matchVisiblePhases {
-                            matchPhaseRow(icon: phase.icon, label: phase.label, index: index)
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .leading).combined(with: .opacity),
-                                    removal: .opacity
-                                ))
-                        }
-                    }
-                }
-                .padding(.horizontal, 32)
-
-                Spacer()
-            }
-        }
-        .onAppear {
-            matchPulse = true
-            startMatchPhaseAnimations()
+        PhasedProgressView(
+            accentColor: .teal,
+            icon: "sparkles",
+            title: "KI gleicht Vorschläge ab",
+            subtitle: "Daten werden mit deinem Account abgeglichen",
+            phases: matchPhases,
+            completedPhases: matchCompletedPhases
+        ) {
+            RecapCard(stats: [
+                RecapStat(icon: "folder", value: "\(controller.projects.count)", label: "Projekte"),
+                RecapStat(icon: "shippingbox", value: "\(controller.products.count)", label: "Produkte"),
+                RecapStat(icon: "tag", value: "\(controller.evaluation.materials.count)", label: "Materialien"),
+            ], accentColor: .teal)
         }
         .onChange(of: controller.autoMatchCompletedPhases) { _, completed in
             withAnimation(.easeInOut(duration: 0.3)) {
                 matchCompletedPhases = completed
-            }
-        }
-    }
-
-    private var matchRecapCard: some View {
-        HStack(spacing: 16) {
-            matchRecapStat(icon: "folder", value: "\(controller.projects.count)", label: "Projekte")
-            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
-            matchRecapStat(icon: "shippingbox", value: "\(controller.products.count)", label: "Produkte")
-            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
-            matchRecapStat(icon: "tag", value: "\(controller.evaluation.materials.count)", label: "Materialien")
-        }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 20)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func matchRecapStat(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.teal)
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func matchPhaseRow(icon: String, label: String, index: Int) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                if index < matchCompletedPhases {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.green)
-                        .transition(.scale.combined(with: .opacity))
-                } else if index == matchCompletedPhases {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .tint(.teal)
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 16))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 22, height: 22)
-                }
-            }
-            .frame(width: 26, height: 26)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: matchCompletedPhases)
-
-            Text(label)
-                .font(.subheadline.weight(index <= matchCompletedPhases ? .medium : .regular))
-                .foregroundStyle(index <= matchCompletedPhases ? .primary : .tertiary)
-
-            Spacer()
-
-            if index < matchCompletedPhases {
-                Text("Fertig")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .transition(.opacity)
-            }
-        }
-        .padding(.vertical, 12)
-        .animation(.easeInOut(duration: 0.3), value: matchCompletedPhases)
-    }
-
-    private func startMatchPhaseAnimations() {
-        matchVisiblePhases = 0
-        matchCompletedPhases = 0
-        matchShowRecap = false
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                matchShowRecap = true
-            }
-        }
-
-        for i in 0..<matchPhases.count {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6 + Double(i) * 0.4) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    matchVisiblePhases = i + 1
-                }
             }
         }
     }
@@ -372,40 +221,26 @@ struct QuestionnaireView: View {
             }
 
             ForEach(sortedProjects) { project in
-                Button {
+                let isSelected = {
+                    if case .project(let selected) = controller.currentItem?.answer {
+                        return selected?.id == project.id
+                    }
+                    return false
+                }()
+
+                SelectableRow(isSelected: isSelected, action: {
                     controller.selectProject(project)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(project.displayName)
-                                .font(.body.weight(.medium))
-                            if let customer = project.customer {
-                                Text(customer.displayName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if case .project(let selected) = controller.currentItem?.answer,
-                           selected?.id == project.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.blue)
+                }) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(project.displayName)
+                            .font(.body.weight(.medium))
+                        if let customer = project.customer {
+                            Text(customer.displayName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .padding()
-                    .background {
-                        if case .project(let selected) = controller.currentItem?.answer,
-                           selected?.id == project.id {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue.opacity(0.08))
-                        } else {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.secondarySystemBackground))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -446,31 +281,26 @@ struct QuestionnaireView: View {
                         .font(.subheadline.weight(.medium))
 
                     ForEach(controller.services) { service in
-                        Button {
+                        let isSelected = {
+                            if case .billingMethod(.serviceType(let selected)) = controller.currentItem?.answer {
+                                return selected?.id == service.id
+                            }
+                            return false
+                        }()
+
+                        SelectableRow(isSelected: isSelected, action: {
                             controller.setBillingMethod(.serviceType(service))
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(service.displayName)
-                                        .font(.body)
-                                    if let price = service.net_price_per_unit {
-                                        Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                if case .billingMethod(.serviceType(let selected)) = controller.currentItem?.answer,
-                                   selected?.id == service.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.blue)
+                        }) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(service.displayName)
+                                    .font(.body)
+                                if let price = service.net_price_per_unit {
+                                    Text(String(format: "%.2f € / %@", price, service.unit_type ?? "Stk"))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -480,6 +310,7 @@ struct QuestionnaireView: View {
     // MARK: Article Selection
 
     @State private var productSearchText = ""
+    @State private var searchTask: Task<Void, Never>?
 
     private var articleSelectionInput: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -495,7 +326,10 @@ struct QuestionnaireView: View {
             TextField("Suchen...", text: $productSearchText)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: productSearchText) { _, newValue in
-                    Task {
+                    searchTask?.cancel()
+                    searchTask = Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        guard !Task.isCancelled else { return }
                         await controller.searchProducts(newValue)
                     }
                 }
@@ -505,40 +339,26 @@ struct QuestionnaireView: View {
             }
 
             ForEach(sortedProducts) { product in
-                Button {
+                let isSelected = {
+                    if case .article(let selected) = controller.currentItem?.answer {
+                        return selected?.id == product.id
+                    }
+                    return false
+                }()
+
+                SelectableRow(isSelected: isSelected, action: {
                     controller.selectArticle(product)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(product.displayName)
-                                .font(.body)
-                            if let price = product.price_net {
-                                Text(String(format: "%.2f € / %@", price, product.unit ?? "Stk"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if case .article(let selected) = controller.currentItem?.answer,
-                           selected?.id == product.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.blue)
+                }) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(product.displayName)
+                            .font(.body)
+                        if let price = product.price_net {
+                            Text(String(format: "%.2f € / %@", price, product.unit ?? "Stk"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .padding()
-                    .background {
-                        if case .article(let selected) = controller.currentItem?.answer,
-                           selected?.id == product.id {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue.opacity(0.08))
-                        } else {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.secondarySystemBackground))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .buttonStyle(.plain)
             }
         }
     }

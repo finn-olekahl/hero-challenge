@@ -6,14 +6,9 @@ final class OfferGenerationService: Sendable {
     private let openAIClient: OpenAIClient?
     private let model: String
 
-    init() {
-        if EnvConfig.isConfigured {
-            self.openAIClient = OpenAIClient(apiKey: EnvConfig.openAIAPIKey)
-            self.model = EnvConfig.mainModel
-        } else {
-            self.openAIClient = nil
-            self.model = ""
-        }
+    init(openAIClient: OpenAIClient? = EnvConfig.openAIClient, model: String = EnvConfig.mainModel) {
+        self.openAIClient = openAIClient
+        self.model = model
     }
 
     func generateOffer(

@@ -83,4 +83,9 @@ enum EnvConfig {
     static var isHeroConfigured: Bool {
         !heroAPIToken.isEmpty && heroAPIToken != "your-hero-token-here"
     }
+
+    /// Shared OpenAI client, or nil when not configured.
+    static var openAIClient: OpenAIClient? {
+        isConfigured ? OpenAIClient(apiKey: openAIAPIKey) : nil
+    }
 }
