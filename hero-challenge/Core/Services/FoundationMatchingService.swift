@@ -13,50 +13,106 @@ final class FoundationMatchingService: Sendable {
     }
 
     /// Attempts to find the best matching project from a list of candidates.
-    /// Returns the matched `ProjectMatch` or nil if no good match found.
+    /// Uses keyword scoring + Foundation Model for best results.
     func matchProject(
         suggestedName: String,
         customerName: String?,
         candidates: [ProjectMatch]
     ) async -> ProjectMatch? {
         guard !candidates.isEmpty, !suggestedName.isEmpty else { return nil }
-        guard SystemLanguageModel.default.isAvailable else { return nil }
 
-        let candidateList = candidates.enumerated().map { i, p in
+        // --- Phase 1: keyword scoring ---
+        let searchTerms = buildSearchTerms(category: suggestedName, description: customerName ?? "")
+        let scored: [(idx: Int, score: Int)] = candidates.enumerated().map { idx, project in
+            let projectName = project.displayName.lowercased()
+            let customerStr = project.customer?.displayName.lowercased() ?? ""
+            let haystack = "\(projectName) \(customerStr)"
+
+            var score = 0
+            for term in searchTerms {
+                if haystack.contains(term) { score += 2 }
+                // Fuzzy: check if any word in haystack starts with the same 4+ chars
+                let haystackWords = haystack.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { $0.count >= 3 }
+                for word in haystackWords {
+                    if term.count >= 4 && word.count >= 4 {
+                        let prefixLen = min(4, min(term.count, word.count))
+                        if term.prefix(prefixLen) == word.prefix(prefixLen) && !haystack.contains(term) {
+                            score += 1 // partial match (e.g. "meyer" vs "meier")
+                        }
+                    }
+                }
+            }
+            // Bonus: customer name exact substring match
+            if let cn = customerName?.lowercased(), !cn.isEmpty, customerStr.contains(cn) {
+                score += 5
+            }
+            return (idx, score)
+        }
+
+        let ranked = scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
+        print("🧠 [FoundationMatch] Project keyword scores: \(ranked.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
+
+        // Strong single keyword match — use directly
+        if ranked.count == 1 || (ranked.count >= 2 && ranked[0].score >= 4 && ranked[0].score > ranked[1].score * 2) {
+            let match = candidates[ranked[0].idx]
+            print("🧠 [FoundationMatch] Project keyword winner: \"\(match.displayName)\" (score: \(ranked[0].score))")
+            return match
+        }
+
+        // --- Phase 2: Foundation Model ---
+        guard SystemLanguageModel.default.isAvailable else {
+            if let best = ranked.first {
+                return candidates[best.idx]
+            }
+            return nil
+        }
+
+        let llmCandidates: [(originalIdx: Int, project: ProjectMatch)]
+        if !ranked.isEmpty {
+            llmCandidates = ranked.prefix(8).map { (idx: $0.idx, project: candidates[$0.idx]) }
+        } else {
+            llmCandidates = Array(candidates.prefix(15).enumerated().map { ($0, $1) })
+        }
+
+        let candidateList = llmCandidates.enumerated().map { listIdx, pair in
+            let p = pair.project
             let customer = p.customer?.displayName ?? ""
-            return "[\(i)] \"\(p.displayName)\" (Kunde: \(customer))"
+            return "[\(listIdx)] \"\(p.displayName)\" (Kunde: \(customer))"
         }.joined(separator: "\n")
 
         let session = LanguageModelSession(instructions: """
-            Du bist ein Matching-Assistent. \
-            Finde das am besten passende Projekt aus der Liste basierend auf dem vorgeschlagenen Namen. \
-            Berücksichtige auch den Kundennamen falls angegeben. \
+            Du bist ein Matching-Assistent für Handwerker-Projekte. \
+            Finde das am besten passende Projekt basierend auf dem vorgeschlagenen Namen und Kundennamen. \
+            Beachte: Kundennamen können leicht abweichen (Meyer/Meier/Maier, Schmidt/Schmitt etc.). \
+            Priorisiere Übereinstimmung beim Kundennamen höher als beim Projektnamen. \
             Wenn kein Projekt gut passt, gib -1 zurück.
             """)
 
         var prompt = "Vorgeschlagener Projektname: \"\(suggestedName)\""
         if let customerName, !customerName.isEmpty {
-            prompt += "\nKundenname: \"\(customerName)\""
+            prompt += "\nKundenname aus Aufnahme: \"\(customerName)\""
         }
         prompt += "\n\nKandidaten:\n\(candidateList)"
         prompt += "\n\nWelcher Kandidat passt am besten?"
 
-        print("🧠 [FoundationMatch] Project prompt:\n\(prompt)")
+        print("🧠 [FoundationMatch] Project LLM prompt (\(llmCandidates.count) candidates)")
 
         do {
             let response = try await session.respond(to: prompt, generating: MatchResult.self)
             let idx = response.content.bestIndex
-            print("🧠 [FoundationMatch] Project result index: \(idx)")
-            if idx >= 0 && idx < candidates.count {
-                print("🧠 [FoundationMatch] Project matched: \"\(candidates[idx].displayName)\"")
-                return candidates[idx]
-            } else {
-                print("🧠 [FoundationMatch] Project index out of range or -1")
+            print("🧠 [FoundationMatch] Project LLM result index: \(idx)")
+            if idx >= 0 && idx < llmCandidates.count {
+                let match = candidates[llmCandidates[idx].originalIdx]
+                print("🧠 [FoundationMatch] Project matched: \"\(match.displayName)\"")
+                return match
             }
         } catch {
             print("⚠️ Foundation Model project matching failed: \(error)")
         }
 
+        if let best = ranked.first {
+            return candidates[best.idx]
+        }
         return nil
     }
 
@@ -70,28 +126,65 @@ final class FoundationMatchingService: Sendable {
     ) async -> SupplyProductVersion? {
         guard !candidates.isEmpty else { return nil }
 
-        // --- Phase 1: keyword pre-filter ---
+        // --- Phase 1: keyword pre-filter with weighted scoring ---
         let searchTerms = buildSearchTerms(category: category, description: description)
-        let scored: [(idx: Int, hits: Int)] = candidates.enumerated().map { idx, product in
-            let haystack = "\(product.displayName) \(product.base_data?.description ?? "") \(product.base_data?.manufacturer ?? "")".lowercased()
-            let hits = searchTerms.filter { haystack.contains($0) }.count
-            return (idx, hits)
+        let transcriptTerms = buildSearchTerms(category: "", description: transcript)
+        
+        // Extract color keywords from description + transcript
+        let colorTerms = extractColorTerms(from: "\(category) \(description) \(transcript)")
+
+        let scored: [(idx: Int, score: Int)] = candidates.enumerated().map { idx, product in
+            let name = product.displayName.lowercased()
+            let desc = (product.base_data?.description ?? "").lowercased()
+            let manufacturer = (product.base_data?.manufacturer ?? "").lowercased()
+            let haystack = "\(name) \(desc) \(manufacturer)"
+
+            var score = 0
+
+            // Category term matches (high weight)
+            let categoryTerms = buildSearchTerms(category: category, description: "")
+            for term in categoryTerms {
+                if haystack.contains(term) { score += 3 }
+            }
+
+            // Description term matches (medium weight)
+            for term in searchTerms where !categoryTerms.contains(term) {
+                if haystack.contains(term) { score += 2 }
+            }
+
+            // Color match bonus
+            for color in colorTerms {
+                if haystack.contains(color) { score += 4 }
+            }
+
+            // Substring matching for compound German words
+            // e.g. "wandfarbe" should match "Weiße Wandfarbe Innen Matt"
+            let categoryLower = category.lowercased()
+            if haystack.contains(categoryLower) { score += 5 }
+
+            // Transcript context terms (low weight — only for disambiguation)
+            for term in transcriptTerms {
+                if haystack.contains(term) { score += 1 }
+            }
+
+            return (idx, score)
         }
-        let prefiltered = scored.filter { $0.hits > 0 }.sorted { $0.hits > $1.hits }
 
-        print("🧠 [FoundationMatch] Product pre-filter: \(prefiltered.count) candidates with keyword hits (terms: \(searchTerms))")
+        let prefiltered = scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
 
-        // If exactly 1 match, return directly
+        print("🧠 [FoundationMatch] Product scoring: \(prefiltered.prefix(5).map { "\(candidates[$0.idx].displayName): \($0.score)" })")
+
+        // Strong single winner — use directly
         if prefiltered.count == 1 {
             let match = candidates[prefiltered[0].idx]
-            print("🧠 [FoundationMatch] Product single keyword match: \"\(match.displayName)\"")
+            print("🧠 [FoundationMatch] Product single match: \"\(match.displayName)\"")
             return match
         }
 
-        // If top candidate has strictly more hits than runner-up, use it
-        if prefiltered.count >= 2 && prefiltered[0].hits > prefiltered[1].hits {
+        // Clear winner by score
+        if prefiltered.count >= 2 && prefiltered[0].score > prefiltered[1].score + 2 {
             let match = candidates[prefiltered[0].idx]
-            print("🧠 [FoundationMatch] Product top keyword match: \"\(match.displayName)\" (\(prefiltered[0].hits) hits vs \(prefiltered[1].hits))")
+            print("🧠 [FoundationMatch] Product score winner: \"\(match.displayName)\" (\(prefiltered[0].score) vs \(prefiltered[1].score))")
             return match
         }
 
@@ -122,9 +215,9 @@ final class FoundationMatchingService: Sendable {
 
         let session = LanguageModelSession(instructions: """
             Du bist ein Matching-Assistent für Handwerker-Produkte. \
-            Finde das am besten passende Produkt aus der Liste basierend auf Kategorie, Beschreibung \
-            und dem Kontext aus dem Transkript des Handwerkers. \
-            Achte besonders auf Details wie Farbe, Material, Größe und spezifische Wünsche aus dem Transkript. \
+            Finde das am besten passende Produkt aus der Liste. \
+            Priorisiere: 1. Passende Produktkategorie, 2. Farbe/Variante, 3. Beschreibung. \
+            Achte besonders auf Details wie Farbe (weiß/rot/etc.), Material, Größe. \
             Wenn kein Produkt gut passt, gib -1 zurück.
             """)
 
@@ -176,17 +269,41 @@ final class FoundationMatchingService: Sendable {
             "der", "die", "das", "ein", "eine", "für", "und", "oder", "mit",
             "zum", "zur", "von", "aus", "auf", "bei", "nach", "über", "unter",
             "des", "dem", "den", "ist", "wird", "werden", "hat", "haben",
-            "als", "auch", "noch", "wie", "was", "pro", "inkl"
+            "als", "auch", "noch", "wie", "was", "pro", "inkl", "soll",
+            "weiße", "weisse", "rote", "blaue", "schwarze", "graue" // colors handled separately
         ]
 
         let combined = "\(category) \(description)"
         let terms = combined
             .lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "äöüß")).inverted)
             .filter { $0.count >= 3 && !stopWords.contains($0) }
 
         // Deduplicate while preserving order
         var seen = Set<String>()
         return terms.filter { seen.insert($0).inserted }
+    }
+
+    /// Extracts color keywords from text for product matching.
+    private func extractColorTerms(from text: String) -> [String] {
+        let colorMap: [(patterns: [String], normalized: String)] = [
+            (["weiß", "weiss", "weiße", "weisse", "white"], "weiß"),
+            (["rot", "rote", "red"], "rot"),
+            (["blau", "blaue", "blue"], "blau"),
+            (["grün", "grüne", "green"], "grün"),
+            (["schwarz", "schwarze", "black"], "schwarz"),
+            (["grau", "graue", "grey", "gray"], "grau"),
+            (["gelb", "gelbe", "yellow"], "gelb"),
+            (["braun", "braune", "brown"], "braun"),
+        ]
+
+        let lower = text.lowercased()
+        var found: [String] = []
+        for color in colorMap {
+            if color.patterns.contains(where: { lower.contains($0) }) {
+                found.append(color.normalized)
+            }
+        }
+        return found
     }
 }

@@ -71,7 +71,11 @@ final class AIEvaluationService: Sendable {
         1. **Leistungen** (services): Welche Arbeiten sollen durchgeführt werden?
         2. **Materialien** (materials): Welche Materialien / Artikelkategorien werden benötigt? \
            Gib keine konkreten Produkte an, sondern Kategorien (z.B. "Fliesen", "Wandfarbe").
-        3. **Auftragskontext** (context): Kundenname, Projektname, Ort — sofern im Gespräch erwähnt.
+        3. **Auftragskontext** (context): Kundenname, Projektname, Ort.
+           - **suggested_project_name**: Schlage IMMER einen Projektnamen vor, auch wenn keiner explizit genannt wurde. \
+             Leite den Namen aus den erkannten Leistungen, dem Ort oder dem Kundenkontext ab \
+             (z.B. "Badsanierung Müller", "Fliesenarbeiten Küche", "Malerarbeiten EG"). \
+             Nur null wenn das Transkript komplett leer oder unverständlich ist.
         4. **Offene Fragen** (open_questions): Was fehlt noch, um ein vollständiges Angebot zu erstellen?
 
         Verknüpfe Messungen mit den passenden Leistungen und Materialien. \
@@ -98,7 +102,7 @@ final class AIEvaluationService: Sendable {
             }
           ],
           "context": {
-            "suggested_project_name": "string oder null",
+            "suggested_project_name": "string – IMMER ausfüllen, aus Leistungen/Ort/Kunde ableiten",
             "customer_name": "string oder null",
             "location": "string oder null"
           },
@@ -114,8 +118,25 @@ final class AIEvaluationService: Sendable {
         - measurement_indices bezieht sich auf den Index in der Messungsliste (0-basiert).
         - derived_from_measurement_index: Index der Messung, aus der die Menge abgeleitet wurde, oder null.
         - Wenn keine spezifischen Leistungen erkannt werden, erstelle eine generische "Handwerkerleistung".
-        - Stelle IMMER MEHRERE offene Fragen (mindestens 3). Frage nach allem, was für ein vollständiges Angebot fehlt: \
-          z.B. gewünschter Zeitraum, Materialqualität/-marke, Zugang zur Baustelle, Entsorgung Altmaterial, besondere Wünsche.
+        - suggested_project_name MUSS immer gesetzt sein. Erstelle einen kurzen, beschreibenden Namen \
+          aus den Leistungen und ggf. Kundenname/Ort (z.B. "Badsanierung", "Elektroarbeiten Neubau", "Fliesenarbeiten Schmidt").
+        - Stelle MAXIMAL 2 offene Fragen. Nur fragen, was WIRKLICH fehlt und nicht aus dem Transkript ableitbar ist. \
+          Frage NICHT nach Zeitraum (wird separat abgefragt). \
+          Frage NICHT nach konkreten Produkten (werden separat ausgewählt). \
+          Frage NICHT nach Mengen (werden aus Messungen abgeleitet). \
+          Gute Fragen: Materialqualität, Untergrundvorbereitung, Entsorgung, Zugang.
+        - **Einheiten für Leistungen** (services): Verwende die Einheit, in der die Arbeit abgerechnet wird. \
+          Erlaubte Werte: m², Std, lfm, Stk, pauschal, kg, L, m. \
+          NIEMALS "psch" verwenden – der korrekte Wert ist "pauschal". \
+          Z.B. Malerarbeiten → m², Elektroinstallation → Std.
+        - **Einheiten für Materialien** (materials): Verwende die Einkaufs-/Verbrauchseinheit des Materials, \
+          NICHT die Flächeneinheit der Leistung. \
+          Erlaubte Werte: m², Std, lfm, Stk, pauschal, kg, L, m. \
+          Beispiele: Wandfarbe → L, Fliesenkleber → kg, Fliesen → m², Schrauben → Stk, \
+          Silikon → Stk (Kartuschen), Kabel → m, Tapete → Stk. \
+          NIEMALS "l" (klein) verwenden – der korrekte Wert ist "L" (groß). \
+          Berechne die Materialmenge in der korrekten Einkaufseinheit aus den Messungen \
+          (z.B. 20m² Wand × 0.15 L/m² = 3.0 L Farbe; 12m² × 3.5 kg/m² = 42 kg Kleber).
         - Alle Texte auf Deutsch.
         """
     }

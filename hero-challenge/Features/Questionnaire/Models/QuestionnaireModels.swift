@@ -7,15 +7,21 @@ struct QuestionnaireItem: Identifiable {
     let id: UUID
     let type: QuestionType
     let question: String
-    let context: String?
+    var context: String?
     var answer: QuestionAnswer
+    var unitLabel: String
+    var referenceId: UUID?
+    var sourceDescription: String?
 
-    init(type: QuestionType, question: String, context: String? = nil, answer: QuestionAnswer = .unanswered) {
+    init(type: QuestionType, question: String, context: String? = nil, answer: QuestionAnswer = .unanswered, unitLabel: String = "", referenceId: UUID? = nil, sourceDescription: String? = nil) {
         self.id = UUID()
         self.type = type
         self.question = question
         self.context = context
         self.answer = answer
+        self.unitLabel = unitLabel
+        self.referenceId = referenceId
+        self.sourceDescription = sourceDescription
     }
 
     enum QuestionType: String {
@@ -23,6 +29,8 @@ struct QuestionnaireItem: Identifiable {
         case billing           // Typ 3: Abrechnungsfragen
         case articleSelection  // Typ 2: Artikelnachfrage
         case freeText          // Typ 4: Freitext
+        case quantityConfirmation // Typ 5: Mengenbestätigung pro Leistung/Material
+        case timeframe         // Typ 6: Gewünschter Zeitraum
     }
 }
 
@@ -32,6 +40,8 @@ enum QuestionAnswer {
     case billingMethod(BillingMethod)
     case article(SupplyProductVersion?)
     case freeText(String)
+    case quantity(Double?)        // confirmed or edited quantity
+    case timeframe(String)        // desired timeframe text
 
     var isAnswered: Bool {
         switch self {
@@ -40,6 +50,8 @@ enum QuestionAnswer {
         case .billingMethod(let m): return m != .unselected
         case .article(let a): return a != nil
         case .freeText(let t): return !t.isEmpty
+        case .quantity(let q): return q != nil
+        case .timeframe(let t): return !t.isEmpty
         }
     }
 }

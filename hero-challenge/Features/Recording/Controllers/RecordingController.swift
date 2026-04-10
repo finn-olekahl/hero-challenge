@@ -135,7 +135,19 @@ final class RecordingController {
             state = .completed
         } catch {
             errorMessage = error.localizedDescription
+            state = .processing // stay in processing so retry is possible
+        }
+    }
+
+    func retryEvaluation() async {
+        guard state == .processing else { return }
+        errorMessage = nil
+        do {
+            let result = try await aiService.evaluate(timeline: timeline, photos: capturedPhotos)
+            evaluation = result
             state = .completed
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

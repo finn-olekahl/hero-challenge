@@ -3,7 +3,7 @@ import SwiftUI
 /// Main recording screen – the AI-Modus camera view with all controls.
 struct RecordingView: View {
     var controller: RecordingController
-    var onComplete: (AIEvaluation) -> Void
+    var onStopRecording: () -> Void
     var onCancel: () -> Void
 
     @State private var showMeasureMode = false
@@ -27,10 +27,6 @@ struct RecordingView: View {
             }
 
             recordingOverlay
-
-            if controller.state == .processing {
-                processingOverlay
-            }
         }
         .preferredColorScheme(.dark)
         .persistentSystemOverlays(.hidden)
@@ -38,8 +34,8 @@ struct RecordingView: View {
             await controller.startRecording()
         }
         .onChange(of: controller.state) { _, newState in
-            if newState == .completed, let evaluation = controller.evaluation {
-                onComplete(evaluation)
+            if newState == .processing {
+                onStopRecording()
             }
         }
         .alert("Fehler", isPresented: .init(
@@ -273,30 +269,6 @@ struct RecordingView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 10)
             .background(isSelected ? Color.white.opacity(0.15) : Color.clear, in: Capsule())
-        }
-    }
-
-    // MARK: - Processing Overlay
-
-    private var processingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.7).ignoresSafeArea()
-
-            VStack(spacing: 20) {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.white)
-
-                Text("KI wertet aus...")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-
-                Text("Leistungen, Artikel und offene Fragen werden identifiziert")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-            }
-            .padding(40)
         }
     }
 

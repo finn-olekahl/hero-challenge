@@ -1,32 +1,61 @@
 import Foundation
 import Observation
 
-/// Controller that creates the final offer via the HERO API.
+/// Controller that generates a complete offer via AI, then creates it via the HERO API.
 @Observable
 final class OfferController {
+    private(set) var isGenerating = false
     private(set) var isCreating = false
     private(set) var isCompleted = false
     private(set) var errorMessage: String?
     private(set) var createdDocumentId: Int?
+    private(set) var generatedOffer: GeneratedOffer?
 
     private let apiService: HeroAPIService
+    private let offerGenService = OfferGenerationService()
     let evaluation: AIEvaluation
     let answers: QuestionnaireController.CollectedAnswers
+    let transcript: String
 
-    init(evaluation: AIEvaluation, answers: QuestionnaireController.CollectedAnswers, apiService: HeroAPIService) {
+    var isWorking: Bool { isGenerating || isCreating }
+
+    init(evaluation: AIEvaluation, answers: QuestionnaireController.CollectedAnswers, apiService: HeroAPIService, transcript: String = "") {
         self.evaluation = evaluation
         self.answers = answers
         self.apiService = apiService
+        self.transcript = transcript
     }
 
+    // MARK: - Generate Offer via AI
+
+    func generateOffer() async {
+        guard !isGenerating else { return }
+        isGenerating = true
+        errorMessage = nil
+        defer { isGenerating = false }
+
+        do {
+            let offer = try await offerGenService.generateOffer(
+                evaluation: evaluation,
+                answers: answers,
+                transcript: transcript
+            )
+            generatedOffer = offer
+        } catch {
+            errorMessage = "KI-Generierung fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Create via API
+
     func createOffer() async {
-        guard !isCreating else { return }
+        guard !isCreating, let offer = generatedOffer else { return }
         isCreating = true
         errorMessage = nil
         defer { isCreating = false }
 
         do {
-            let actions = buildDocumentActions()
+            let actions = buildDocumentActions(from: offer)
 
             let documentTypes = try await apiService.fetchDocumentTypes(baseTypes: ["offer"])
             guard let offerType = documentTypes.first else {
@@ -52,85 +81,36 @@ final class OfferController {
         }
     }
 
-    private func buildDocumentActions() -> [[String: AnyCodable]] {
+    private func buildDocumentActions(from offer: GeneratedOffer) -> [[String: AnyCodable]] {
         var actions: [[String: AnyCodable]] = []
 
-        // Add services — either as existing supply_service or as ad-hoc create_supply_service
-        for billing in answers.billingMethods {
-            switch billing.method {
-            case .hourly(let hours):
-                // Create an ad-hoc service position for hourly billing
-                var serviceAction: [String: AnyCodable] = [
-                    "name": AnyCodable(billing.service.name),
-                    "unit_type": AnyCodable("Std"),
-                    "net_price_per_unit": AnyCodable(0),
-                    "vat_percent": AnyCodable(19.0),
-                    "quantity": AnyCodable(max(hours, 1))
-                ]
-                if !billing.service.description.isEmpty {
-                    serviceAction["description"] = AnyCodable(billing.service.description)
-                }
-                actions.append(["create_supply_service": AnyCodable(serviceAction)])
-
-            case .serviceType(let supplyService):
-                if let supplyService {
-                    // Add an existing supply service from the catalog
-                    var serviceAction: [String: AnyCodable] = [
-                        "supplyServiceId": AnyCodable(supplyService.id)
-                    ]
-                    if let qty = billing.service.suggestedQuantity, qty > 0 {
-                        serviceAction["quantity"] = AnyCodable(qty)
-                    }
-                    actions.append(["add_existing_service": AnyCodable(serviceAction)])
-                } else {
-                    // No specific service selected — create ad-hoc
-                    var serviceAction: [String: AnyCodable] = [
-                        "name": AnyCodable(billing.service.name),
-                        "unit_type": AnyCodable(billing.service.suggestedUnit ?? "Stk"),
-                        "net_price_per_unit": AnyCodable(0),
-                        "vat_percent": AnyCodable(19.0),
-                        "quantity": AnyCodable(billing.service.suggestedQuantity ?? 1.0)
-                    ]
-                    if !billing.service.description.isEmpty {
-                        serviceAction["description"] = AnyCodable(billing.service.description)
-                    }
-                    actions.append(["create_supply_service": AnyCodable(serviceAction)])
-                }
-
-            case .unselected:
-                // Create ad-hoc with defaults
-                var serviceAction: [String: AnyCodable] = [
-                    "name": AnyCodable(billing.service.name),
-                    "unit_type": AnyCodable(billing.service.suggestedUnit ?? "Stk"),
-                    "net_price_per_unit": AnyCodable(0),
-                    "vat_percent": AnyCodable(19.0),
-                    "quantity": AnyCodable(billing.service.suggestedQuantity ?? 1.0)
-                ]
-                if !billing.service.description.isEmpty {
-                    serviceAction["description"] = AnyCodable(billing.service.description)
-                }
-                actions.append(["create_supply_service": AnyCodable(serviceAction)])
-            }
+        for service in offer.servicePositions {
+            let serviceAction: [String: AnyCodable] = [
+                "name": AnyCodable(service.name),
+                "description": AnyCodable(service.description),
+                "unit_type": AnyCodable(Self.sanitizeUnitType(service.unitType)),
+                "net_price_per_unit": AnyCodable(service.netPricePerUnit),
+                "vat_percent": AnyCodable(19.0),
+                "quantity": AnyCodable(service.quantity)
+            ]
+            actions.append(["create_supply_service": AnyCodable(serviceAction)])
         }
 
-        // Add product positions for selected products
-        for productEntry in answers.selectedProducts {
-            if let product = productEntry.product, let productId = product.product_id {
-                // Add product by its catalog ID
+        for product in offer.productPositions {
+            if let catalogId = product.catalogProductId, !catalogId.isEmpty {
                 let productAction: [String: AnyCodable] = [
-                    "product_id": AnyCodable(productId),
-                    "quantity": AnyCodable(productEntry.material.suggestedQuantity ?? 1.0)
+                    "product_id": AnyCodable(catalogId),
+                    "quantity": AnyCodable(product.quantity)
                 ]
                 actions.append(["add_product_position_by_id": AnyCodable(productAction)])
-            } else if let product = productEntry.product {
-                // Add product as a manual position
+            } else {
                 let productAction: [String: AnyCodable] = [
-                    "name": AnyCodable(product.displayName),
-                    "description": AnyCodable(productEntry.material.description),
-                    "unit_type": AnyCodable(product.unit ?? productEntry.material.suggestedUnit ?? "Stk"),
-                    "quantity": AnyCodable(productEntry.material.suggestedQuantity ?? 1.0),
-                    "net_price": AnyCodable(product.price_net ?? 0),
-                    "vat_percent": AnyCodable(product.vat_percent ?? 19.0)
+                    "name": AnyCodable(product.name),
+                    "description": AnyCodable(product.description),
+                    "unit_type": AnyCodable(Self.sanitizeUnitType(product.unitType)),
+                    "quantity": AnyCodable(product.quantity),
+                    "net_price": AnyCodable(product.netPrice),
+                    "vat_percent": AnyCodable(19.0)
                 ]
                 actions.append(["add_product_position": AnyCodable(productAction)])
             }
@@ -139,13 +119,42 @@ final class OfferController {
         return actions
     }
 
+    /// Maps common AI-generated unit abbreviations to valid HERO API unit types.
+    private static func sanitizeUnitType(_ unit: String) -> String {
+        let mapping: [String: String] = [
+            "psch": "pauschal",
+            "pschl": "pauschal",
+            "pausch": "pauschal",
+            "l": "L",
+            "liter": "L",
+            "stk.": "Stk",
+            "stück": "Stk",
+            "stueck": "Stk",
+            "std.": "Std",
+            "stunde": "Std",
+            "stunden": "Std",
+            "qm": "m\u{00B2}",
+            "m2": "m\u{00B2}",
+            "meter": "m",
+        ]
+        return mapping[unit.lowercased()] ?? unit
+    }
+
     /// Summary of what will be created.
     var offerSummary: OfferSummary {
-        OfferSummary(
+        if let offer = generatedOffer {
+            return OfferSummary(
+                projectName: answers.project?.displayName ?? "—",
+                serviceCount: offer.servicePositions.count,
+                materialCount: offer.productPositions.count,
+                title: offer.title
+            )
+        }
+        return OfferSummary(
             projectName: answers.project?.displayName ?? "—",
             serviceCount: answers.billingMethods.count,
             materialCount: answers.selectedProducts.filter { $0.product != nil }.count,
-            freeTextCount: answers.freeTextAnswers.filter { !$0.answer.isEmpty }.count
+            title: nil
         )
     }
 }
@@ -154,7 +163,7 @@ struct OfferSummary {
     let projectName: String
     let serviceCount: Int
     let materialCount: Int
-    let freeTextCount: Int
+    let title: String?
 
     var totalPositions: Int { serviceCount + materialCount }
 }

@@ -27,6 +27,22 @@ struct ContentView: View {
             case .recording:
                 RecordingView(
                     controller: recordingController,
+                    onStopRecording: {
+                        withAnimation {
+                            appState = .processing
+                        }
+                    },
+                    onCancel: {
+                        recordingController.reset()
+                        withAnimation {
+                            appState = .home
+                        }
+                    }
+                )
+
+            case .processing:
+                ProcessingView(
+                    controller: recordingController,
                     onComplete: { eval in
                         self.evaluation = eval
                         let qc = QuestionnaireController(evaluation: eval, apiService: apiService, transcript: self.recordingController.currentTranscript)
@@ -49,7 +65,12 @@ struct ContentView: View {
                         controller: qc,
                         onComplete: { answers in
                             if let eval = evaluation {
-                                let oc = OfferController(evaluation: eval, answers: answers, apiService: apiService)
+                                let oc = OfferController(
+                                    evaluation: eval,
+                                    answers: answers,
+                                    apiService: apiService,
+                                    transcript: self.recordingController.currentTranscript
+                                )
                                 self.offerController = oc
                                 withAnimation {
                                     appState = .offer
@@ -170,6 +191,7 @@ struct ContentView: View {
 enum AppFlowState {
     case home
     case recording
+    case processing
     case questionnaire
     case offer
 }

@@ -36,18 +36,33 @@ final class SpeechRecognitionService: NSObject {
         recordingStartTime = startTime
         lastTranscript = ""
 
-        // Move heavy audio session setup off the main thread
-        try await Task.detached(priority: .userInitiated) {
+        // Move all heavy audio setup off the main thread
+        try await Task.detached(priority: .userInitiated) { [audioEngine] in
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+
+            // inputNode access lazily creates the audio graph – expensive
+            let inputNode = audioEngine.inputNode
+            inputNode.removeTap(onBus: 0)
+            let recordingFormat = inputNode.outputFormat(forBus: 0)
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak audioEngine] buffer, _ in
+                _ = audioEngine // prevent retain cycle warning
+            }
+
+            audioEngine.prepare()
         }.value
 
         setupRecognitionRequest()
-        installAudioTap()
+        // Re-install tap with the actual request now that it exists
+        let inputNode = audioEngine.inputNode
+        inputNode.removeTap(onBus: 0)
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.recognitionRequest?.append(buffer)
+        }
         startRecognitionTask(restartOnEnd: true)
 
-        audioEngine.prepare()
         try audioEngine.start()
         _isRecording = true
     }

@@ -21,7 +21,10 @@ struct ARMeasureView: UIViewRepresentable {
         view.rendersContinuously = true
 
         context.coordinator.sceneView = view
-        context.coordinator.startSession()
+        // Defer AR session start so the view renders a frame first
+        DispatchQueue.main.async {
+            context.coordinator.startSession()
+        }
         return view
     }
 

@@ -13,15 +13,8 @@ struct QuestionnaireView: View {
                 progressBar
 
                 if controller.isAutoMatching {
-                    VStack(spacing: 16) {
-                        Spacer()
-                        ProgressView()
-                        Text("KI gleicht Vorschläge ab…")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    autoMatchingView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if controller.isCompleted {
                     completionView
                 } else if let item = controller.currentItem {
@@ -54,6 +47,8 @@ struct QuestionnaireView: View {
         hourCount = ""
         productSearchText = ""
         freeTextAnswer = ""
+        quantityText = ""
+        timeframeText = ""
 
         guard let item = controller.currentItem else { return }
         switch item.answer {
@@ -69,8 +64,196 @@ struct QuestionnaireView: View {
             }
         case .freeText(let text):
             freeTextAnswer = text
+        case .quantity(let q):
+            if let q {
+                quantityText = String(format: "%.1f", q)
+            }
+        case .timeframe(let t):
+            timeframeText = t
         default:
             break
+        }
+    }
+
+    // MARK: - Auto-Matching Animated View
+
+    @State private var matchPulse: Bool = false
+    @State private var matchVisiblePhases: Int = 0
+    @State private var matchCompletedPhases: Int = 0
+    @State private var matchShowRecap: Bool = false
+
+    private let matchPhases = [
+        (icon: "folder", label: "Projekt wird zugeordnet"),
+        (icon: "shippingbox", label: "Produkte werden abgeglichen"),
+    ]
+
+    private var autoMatchingView: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(.systemBackground), Color.teal.opacity(0.06)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer().frame(height: 40)
+
+                // Pulsing icon
+                ZStack {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .stroke(Color.teal.opacity(0.15 - Double(i) * 0.04), lineWidth: 1.5)
+                            .frame(width: CGFloat(80 + i * 28), height: CGFloat(80 + i * 28))
+                            .scaleEffect(matchPulse ? 1.08 : 0.95)
+                            .animation(
+                                .easeInOut(duration: 1.8)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(i) * 0.3),
+                                value: matchPulse
+                            )
+                    }
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundStyle(.teal)
+                        .frame(width: 72, height: 72)
+                        .background(Color.teal.opacity(0.1), in: Circle())
+                }
+                .padding(.bottom, 28)
+
+                Text("KI gleicht Vorschläge ab")
+                    .font(.title2.weight(.bold))
+                    .padding(.bottom, 6)
+
+                Text("Daten werden mit deinem Account abgeglichen")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 32)
+
+                // Recap card
+                if matchShowRecap {
+                    matchRecapCard
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 28)
+                }
+
+                // Phases
+                VStack(spacing: 0) {
+                    ForEach(Array(matchPhases.enumerated()), id: \.offset) { index, phase in
+                        if index < matchVisiblePhases {
+                            matchPhaseRow(icon: phase.icon, label: phase.label, index: index)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .leading).combined(with: .opacity),
+                                    removal: .opacity
+                                ))
+                        }
+                    }
+                }
+                .padding(.horizontal, 32)
+
+                Spacer()
+            }
+        }
+        .onAppear {
+            matchPulse = true
+            startMatchPhaseAnimations()
+        }
+        .onChange(of: controller.autoMatchCompletedPhases) { _, completed in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                matchCompletedPhases = completed
+            }
+        }
+    }
+
+    private var matchRecapCard: some View {
+        HStack(spacing: 16) {
+            matchRecapStat(icon: "folder", value: "\(controller.projects.count)", label: "Projekte")
+            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
+            matchRecapStat(icon: "shippingbox", value: "\(controller.products.count)", label: "Produkte")
+            Rectangle().fill(Color(.separator)).frame(width: 1, height: 36)
+            matchRecapStat(icon: "tag", value: "\(controller.evaluation.materials.count)", label: "Materialien")
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func matchRecapStat(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.teal)
+            Text(value)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func matchPhaseRow(icon: String, label: String, index: Int) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                if index < matchCompletedPhases {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.green)
+                        .transition(.scale.combined(with: .opacity))
+                } else if index == matchCompletedPhases {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(.teal)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 16))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 22, height: 22)
+                }
+            }
+            .frame(width: 26, height: 26)
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: matchCompletedPhases)
+
+            Text(label)
+                .font(.subheadline.weight(index <= matchCompletedPhases ? .medium : .regular))
+                .foregroundStyle(index <= matchCompletedPhases ? .primary : .tertiary)
+
+            Spacer()
+
+            if index < matchCompletedPhases {
+                Text("Fertig")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .transition(.opacity)
+            }
+        }
+        .padding(.vertical, 12)
+        .animation(.easeInOut(duration: 0.3), value: matchCompletedPhases)
+    }
+
+    private func startMatchPhaseAnimations() {
+        matchVisiblePhases = 0
+        matchCompletedPhases = 0
+        matchShowRecap = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                matchShowRecap = true
+            }
+        }
+
+        for i in 0..<matchPhases.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6 + Double(i) * 0.4) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    matchVisiblePhases = i + 1
+                }
+            }
         }
     }
 
@@ -134,6 +317,8 @@ struct QuestionnaireView: View {
         case .billing: ("Abrechnung", .orange)
         case .articleSelection: ("Artikel", .green)
         case .freeText: ("Freitext", .purple)
+        case .quantityConfirmation: ("Menge", .teal)
+        case .timeframe: ("Zeitraum", .indigo)
         }
 
         Text(label)
@@ -160,6 +345,12 @@ struct QuestionnaireView: View {
 
         case .freeText:
             freeTextInput
+
+        case .quantityConfirmation:
+            quantityConfirmationInput
+
+        case .timeframe:
+            timeframeInput
         }
     }
 
@@ -180,7 +371,7 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Projekte...")
             }
 
-            ForEach(controller.projects) { project in
+            ForEach(sortedProjects) { project in
                 Button {
                     controller.selectProject(project)
                 } label: {
@@ -223,7 +414,6 @@ struct QuestionnaireView: View {
 
     @State private var billingIsHourly = true
     @State private var hourCount: String = ""
-    @State private var hourDebounceTask: Task<Void, Never>?
 
     private var billingInput: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -249,15 +439,6 @@ struct QuestionnaireView: View {
                     TextField("z.B. 4,5", text: $hourCount)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
-                        .onChange(of: hourCount) { _, newValue in
-                            hourDebounceTask?.cancel()
-                            hourDebounceTask = Task {
-                                try? await Task.sleep(for: .milliseconds(300))
-                                guard !Task.isCancelled else { return }
-                                let hours = Double(newValue.replacingOccurrences(of: ",", with: ".")) ?? 0
-                                controller.setBillingMethod(.hourly(hours: hours))
-                            }
-                        }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -323,7 +504,7 @@ struct QuestionnaireView: View {
                 ProgressView("Lade Produkte...")
             }
 
-            ForEach(controller.products) { product in
+            ForEach(sortedProducts) { product in
                 Button {
                     controller.selectArticle(product)
                 } label: {
@@ -376,18 +557,121 @@ struct QuestionnaireView: View {
                 .padding(8)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .onChange(of: freeTextAnswer) { _, newValue in
-                    controller.setFreeText(newValue)
-                }
         }
     }
 
+    // MARK: Quantity Confirmation
+
+    @State private var quantityText = ""
+
+    private var quantityConfirmationInput: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Menge prüfen und ggf. anpassen")
+                .font(.subheadline.weight(.medium))
+
+            HStack(spacing: 12) {
+                TextField("Menge", text: $quantityText)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 120)
+
+                if let item = controller.currentItem, !item.unitLabel.isEmpty {
+                    Text(item.unitLabel)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.blue)
+                }
+
+                Spacer()
+            }
+
+            // Source info: where did this value come from?
+            if let item = controller.currentItem, let source = item.sourceDescription, !source.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    Text(source)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.blue.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    // MARK: Timeframe
+
+    @State private var timeframeText = ""
+
+    private var timeframeInput: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Gewünschter Zeitraum")
+                .font(.subheadline.weight(.medium))
+
+            TextField("z.B. nächste Woche, ab Mai, so schnell wie möglich", text: $timeframeText)
+                .textFieldStyle(.roundedBorder)
+
+            Text("Der Zeitraum wird im Angebot als Hinweis vermerkt.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Sorted Lists (auto-selected on top)
+
+    private var sortedProjects: [ProjectMatch] {
+        guard case .project(let selected) = controller.currentItem?.answer,
+              let selected else { return controller.projects }
+        var sorted = controller.projects
+        if let idx = sorted.firstIndex(where: { $0.id == selected.id }), idx > 0 {
+            let item = sorted.remove(at: idx)
+            sorted.insert(item, at: 0)
+        }
+        return sorted
+    }
+
+    private var sortedProducts: [SupplyProductVersion] {
+        guard case .article(let selected) = controller.currentItem?.answer,
+              let selected else { return controller.products }
+        var sorted = controller.products
+        if let idx = sorted.firstIndex(where: { $0.id == selected.id }), idx > 0 {
+            let item = sorted.remove(at: idx)
+            sorted.insert(item, at: 0)
+        }
+        return sorted
+    }
+
     // MARK: - Navigation Buttons
+
+    /// Flush local @State values to the controller before navigating away.
+    private func commitLocalState() {
+        guard let item = controller.currentItem else { return }
+        switch item.type {
+        case .billing:
+            if billingIsHourly {
+                let hours = Double(hourCount.replacingOccurrences(of: ",", with: ".")) ?? 0
+                controller.setBillingMethod(.hourly(hours: hours))
+            }
+        case .freeText:
+            controller.setFreeText(freeTextAnswer)
+        case .quantityConfirmation:
+            let qty = Double(quantityText.replacingOccurrences(of: ",", with: "."))
+            controller.setQuantity(qty)
+        case .timeframe:
+            controller.setTimeframe(timeframeText)
+        default:
+            break
+        }
+    }
 
     private var navigationButtons: some View {
         HStack {
             if controller.currentIndex > 0 {
                 Button {
+                    commitLocalState()
                     controller.goToPrevious()
                 } label: {
                     HStack {
@@ -402,6 +686,7 @@ struct QuestionnaireView: View {
             }
 
             Button {
+                commitLocalState()
                 controller.goToNext()
             } label: {
                 HStack {
