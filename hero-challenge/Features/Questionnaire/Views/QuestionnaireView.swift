@@ -95,9 +95,6 @@ struct QuestionnaireView: View {
             isComplete: false,
             onAllPhasesComplete: nil
         )
-        .onChange(of: controller.autoMatchCompletedPhases) { _, _ in
-            // PhasedProgressView handles its own phase completion timing
-        }
     }
 
     // MARK: - Progress Bar

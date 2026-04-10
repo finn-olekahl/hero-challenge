@@ -117,6 +117,7 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case product_id, nr, base_price, list_price, vat_percent, internal_identifier, base_data
+        case _stableId = "_stable_id"
     }
 
     init(from decoder: Decoder) throws {
@@ -128,7 +129,12 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
         vat_percent = try container.decodeIfPresent(Double.self, forKey: .vat_percent)
         internal_identifier = try container.decodeIfPresent(String.self, forKey: .internal_identifier)
         base_data = try container.decodeIfPresent(SupplyProductBaseData.self, forKey: .base_data)
-        id = product_id ?? nr ?? UUID().uuidString
+        // Prefer persisted stable ID (for roundtrip), otherwise derive from product_id/nr
+        if let persisted = try container.decodeIfPresent(String.self, forKey: ._stableId) {
+            id = persisted
+        } else {
+            id = product_id ?? nr ?? UUID().uuidString
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -140,6 +146,10 @@ struct SupplyProductVersion: Codable, Identifiable, Hashable {
         try container.encodeIfPresent(vat_percent, forKey: .vat_percent)
         try container.encodeIfPresent(internal_identifier, forKey: .internal_identifier)
         try container.encodeIfPresent(base_data, forKey: .base_data)
+        // Persist the stable ID only when it was a fallback UUID (not derivable from product_id/nr)
+        if product_id == nil && nr == nil {
+            try container.encode(id, forKey: ._stableId)
+        }
     }
 }
 
